@@ -1,6 +1,6 @@
 use core::f64::consts::TAU;
 
-use crate::{State};
+use crate::State;
 
 use graphics::{
     self, Camera, ControlScheme, DeviceEvent, EngineUpdates, Entity, InputSettings, LightType,
@@ -11,7 +11,6 @@ use lin_alg2::{
     f32::{Quaternion, Vec3},
     f64::Vec3 as Vec3F64,
 };
-
 
 /// Entry point to our render and event loop.
 pub fn render(state: State) {
