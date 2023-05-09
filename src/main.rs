@@ -63,6 +63,12 @@ pub struct Vec4 {
     pub z: f64,
 }
 
+impl Vec4 {
+    pub fn dot(self, other: Self) -> f64 {
+        -(self.t * other.t) + self.x * other.x + self.y * other.y + self.z * other.z
+    }
+}
+
 
 
 /// Christoffel symbol.
@@ -79,13 +85,13 @@ fn gamma(v: f64) -> f64 {
 struct Vec4Minkowski {
     /// We store the numerical representation internally in its contravariant form (Upper index).
     /// We use the `as_lower` method to get its value in covariant form.
-    data: Vec4,
+    value_upper: Vec4,
 }
 
 impl Vec4Minkowski {
     /// Get the vector's contravariant (upper-index) numerical form.
     pub fn as_upper(&self) -> Vec4 {
-         self.data
+         self.value_upper
     }
 
     /// Get the vector's covariant (lower-index) numerical form.
@@ -102,10 +108,9 @@ impl Vec4Minkowski {
     }
 
     /// Perform a coordinate-system transform of the upper-indexed (contravariant) form.
-    pub fn transform_upper(&self) -> Vec4 {
+    /// todo: Should these var names be `ds`, or `dx`? A convention question.
+    pub fn transform_upper(&self, dx: Vec4, dx_p: Vec4) -> Vec4 {
         let A = self.as_upper();
-        let dx = Vec4 { };
-        let dx_p = Vec4 { };
 
         let t = dx_p.t / dx.t * A.t + dx_p.t / dx.x * A.x + dx_p.t / dx.y * A.y + dx_p.t / dx.z * A.z;
         let x = dx_p.x / dx.t * A.t + dx_p.x / dx.x * A.x + dx_p.x / dx.y * A.y + dx_p.x / dx.z * A.z;
@@ -115,19 +120,16 @@ impl Vec4Minkowski {
         Vec4 { t, x, y, z }
     }
 
-    pub fn transform_lower(&self) -> Vec4 {
+    pub fn transform_lower(&self, dx: Vec4, dx_p: Vec4) -> Vec4 {
         let A = self.as_lower();
-        let dx = Vec4 { };
-        let dx_p = Vec4 { };
 
-        let t = dx.t / dx_p.t * A.t + dx.x / dx_p.t * A.t + dx.y / dx_p.t * A.t + dx.z / dx_p.t * A.t;
-        // todo: Set other rows when you come back
-        let x = dx.t / dx_p.t * A.t + dx.x / dx_p.t * A.t + dx.y / dx_p.t * A.t + dx.z / dx_p.t * A.t;
-        let y = dx.t / dx_p.t * A.t + dx.x / dx_p.t * A.t + dx.y / dx_p.t * A.t + dx.z / dx_p.t * A.t;
-        let z = dx.t / dx_p.t * A.t + dx.x / dx_p.t * A.t + dx.y / dx_p.t * A.t + dx.z / dx_p.t * A.t;
+        let t = dx.t / dx_p.t * A.t + dx.x / dx_p.t * A.x + dx.y / dx_p.t * A.y + dx.z / dx_p.t * A.z;
+        let x = dx.t / dx_p.x * A.t + dx.x / dx_p.x * A.x + dx.y / dx_p.x * A.y + dx.z / dx_p.x * A.z;
+        let y = dx.t / dx_p.y * A.t + dx.x / dx_p.y * A.x + dx.y / dx_p.y * A.y + dx.z / dx_p.y * A.z;
+        let z = dx.t / dx_p.z * A.t + dx.x / dx_p.z * A.x + dx.y / dx_p.z * A.y + dx.z / dx_p.z * A.z;
 
 
-        Self { t, x, y, z } .as_lower()
+        Vec4 { t, x, y, z }
     }
 
     pub fn lortenz_transform(&self, v: f64) -> Self {
@@ -190,6 +192,48 @@ pub struct MetricTensor {
 }
 
 impl MetricTensor {
+    // todo: Should bases be a matrix, or 4 vecs?
+    /// `bases` is a matrix, where each column is a coordinate basis vector.
+    /// todo: Minkowski 4 vecs, or normal?
+    // pub fn from_coordinate_bases(bases: &Mat4) -> Self {
+    pub fn from_coordinate_bases(e_t: Vec4Minkowski, e_x: Vec4Minkowski,
+                                 e_y: Vec4Minkowski, e_z: Vec4Minkowski) -> Self {
+        // todo: Can we use matrix multiplication etc for this?
+        // todo: Is this directly our upper (or lower???) matrix?
+
+        // todo: We are using upper indices for all. is this what we want?
+
+        let t = e_t.value_upper;
+        let x = e_x.value_upper;
+        let y = e_y.value_upper;
+        let z = e_z.value_upper;
+
+        // col-major. Upper-indexed.
+        let mut g = [0; 16];
+
+        // todo: Isn't the notation to use dot products?
+        g[0] = t.t.dot(b.t);
+        g[1] = t.x.dot(b.t);
+        g[2] = t.y.dot(b.t);
+        g[3] = t.z.dot(b.t);
+        g[4] = t.t.dot(b.x);
+        g[5] = t.x.dot(b.x);
+        g[6] = t.y.dot(b.x);
+        g[7] = t.z.dot(b.x);
+        g[8] = t.t.dot(b.y);
+        g[9] = t.x.dot(b.y);
+        g[10] = t.y.dot(b.y);
+        g[11] = t.z.dot(b.y);
+        g[12] = t.t.dot(b.z);
+        g[13] = t.x.dot(b.z);
+        g[14] = t.y.dot(b.z);
+        g[15] = t.z.dot(b.z);
+
+        Self { matrix_uu: Mat4 { data: g }) }
+
+
+    }
+
     pub fn as_config(&self, config: Tensor2Config) -> Mat4 {
         // todo
         match config {
