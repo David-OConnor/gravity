@@ -1,4 +1,4 @@
-use core::f64::consts::TAU;
+use core::f32::consts::TAU;
 
 use crate::State;
 
@@ -11,6 +11,14 @@ use lin_alg2::{
     f32::{Quaternion, Vec3},
     f64::Vec3 as Vec3F64,
 };
+
+type Color = (f32, f32, f32);
+
+const WINDOW_TITLE: &str = "ψ lab";
+const WINDOW_SIZE_X: f32 = 1_600.;
+const WINDOW_SIZE_Y: f32 = 1_200.;
+const RENDER_DIST: f32 = 100.;
+const BACKGROUND_COLOR: Color = (0.5, 0.5, 0.5);
 
 /// Entry point to our render and event loop.
 pub fn render(state: State) {
@@ -52,14 +60,14 @@ pub fn render(state: State) {
         window_title: WINDOW_TITLE.to_owned(),
     };
 
-    update_meshes(
-        &state.surfaces,
-        state.z_displayed,
-        &mut scene,
-        // state.grid_min,
-        // state.grid_max,
-    );
-    update_entities(&state.charges, &state.show_surfaces, &mut scene);
+    // update_meshes(
+    //     &state.surfaces,
+    //     state.z_displayed,
+    //     &mut scene,
+    //     // state.grid_min,
+    //     // state.grid_max,
+    // );
+    // update_entities(&state.charges, &state.show_surfaces, &mut scene);
 
     let input_settings = InputSettings {
         initial_controls: ControlScheme::FreeCamera,

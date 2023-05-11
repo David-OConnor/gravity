@@ -1,5 +1,5 @@
-!#[allow(non_ascii_idents)]
-!#[allow(non_snake_case)]
+#![allow(non_ascii_idents)]
+#![allow(non_snake_case)]
 
 //! Modeling a galaxy, with the hope of learning something about Dark matter, or perhaps
 //! physics/chem modelling and rendering skills in general.
@@ -18,6 +18,10 @@ use lin_alg2::f64::{Mat4, Vec3, Vec4 as Vec4Linalg};
 use std::f64::consts::TAU;
 
 mod render;
+mod tensors;
+mod ui;
+
+use crate::tensors::{MetricTensor, Vec4, Vec4Minkowski};
 
 // Gravitational constant.
 const C: f64 = 1.;
@@ -25,318 +29,15 @@ const C_SQ: f64 = 1.;
 const G: f64 = 1.; // todo: Change A/R.
 
 pub type Arr3dReal = Vec<Vec<Vec<f64>>>;
-
 pub type Arr3d = Vec<Vec<Vec<Cplx>>>;
 pub type Arr3dVec = Vec<Vec<Vec<Vec3>>>;
+pub type Arr3dVec4 = Vec<Vec<Vec<Vec4>>>;
 pub type Arr3dMetric = Vec<Vec<Vec<MetricTensor>>>;
-
-#[rustfmt::skip]
-const ETA_MINKOWSKI: Mat4 = Mat4 { data: [
-    -1., 0., 0., 0.,
-    0., 1., 0., 0.,
-    0., 0., 1., 0.,
-    0., 0., 0., 1.
-]};
-
-#[derive(Clone, Copy)]
-enum Tensor1Config {
-    U,
-    L,
-}
-
-#[derive(Clone, Copy)]
-enum Tensor2Config {
-    Uu,
-    Ul,
-    Lu,
-    Ll,
-}
-
-/// Wraps `lin-alg`'s Vec4, but with appropriately-named indices.
-/// This exists for the purpose of performing standard linear-algebra operations.
-/// It has concrete values.
-#[derive(Clone, Copy)]
-pub struct Vec4 {
-    pub t: f64,
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
-}
-
-impl Vec4 {
-    pub fn dot(self, other: Self) -> f64 {
-        -(self.t * other.t) + self.x * other.x + self.y * other.y + self.z * other.z
-    }
-}
-
-
-
-/// Christoffel symbol.
-pub struct Christoffel {}
 
 // todo: Consider the form of this.
 fn gamma(v: f64) -> f64 {
     1. / (1. - v.powi(2) / C_SQ).sqrt()
 }
-
-/// 4-vector in Minkowski coordinates. Capable of representations in covariant and
-/// contravariant forms.
-#[derive(Clone, Copy)]
-struct Vec4Minkowski {
-    /// We store the numerical representation internally in its contravariant form (Upper index).
-    /// We use the `as_lower` method to get its value in covariant form.
-    value_upper: Vec4,
-}
-
-impl Vec4Minkowski {
-    /// Get the vector's contravariant (upper-index) numerical form.
-    pub fn as_upper(&self) -> Vec4 {
-         self.value_upper
-    }
-
-    /// Get the vector's covariant (lower-index) numerical form.
-    pub fn as_lower(&self, metric: MetricTensor) -> Vec4 {
-        // From some hand-written computations, this appeasrs to be valid.
-        metric.matrix_uu.as_config(Tensor2Config::Ll) * self.as_upper()
-    }
-
-    pub fn dot(&self, other: &Self) -> f64 {
-        let this = self.as_upper();
-        let other = other.as_upper();
-
-        -(this.t * other.t) + this.x * other.x + this.y * other.y + this.z * other.z
-    }
-
-    /// Perform a coordinate-system transform of the upper-indexed (contravariant) form.
-    /// todo: Should these var names be `ds`, or `dx`? A convention question.
-    pub fn transform_upper(&self, dx: Vec4, dx_p: Vec4) -> Vec4 {
-        let A = self.as_upper();
-
-        let t = dx_p.t / dx.t * A.t + dx_p.t / dx.x * A.x + dx_p.t / dx.y * A.y + dx_p.t / dx.z * A.z;
-        let x = dx_p.x / dx.t * A.t + dx_p.x / dx.x * A.x + dx_p.x / dx.y * A.y + dx_p.x / dx.z * A.z;
-        let y = dx_p.y / dx.t * A.t + dx_p.y / dx.x * A.x + dx_p.y / dx.y * A.y + dx_p.y / dx.z * A.z;
-        let z = dx_p.z / dx.t * A.t + dx_p.z / dx.x * A.x + dx_p.z / dx.y * A.y + dx_p.z / dx.z * A.z;
-
-        Vec4 { t, x, y, z }
-    }
-
-    pub fn transform_lower(&self, dx: Vec4, dx_p: Vec4) -> Vec4 {
-        let A = self.as_lower();
-
-        let t = dx.t / dx_p.t * A.t + dx.x / dx_p.t * A.x + dx.y / dx_p.t * A.y + dx.z / dx_p.t * A.z;
-        let x = dx.t / dx_p.x * A.t + dx.x / dx_p.x * A.x + dx.y / dx_p.x * A.y + dx.z / dx_p.x * A.z;
-        let y = dx.t / dx_p.y * A.t + dx.x / dx_p.y * A.x + dx.y / dx_p.y * A.y + dx.z / dx_p.y * A.z;
-        let z = dx.t / dx_p.z * A.t + dx.x / dx_p.z * A.x + dx.y / dx_p.z * A.y + dx.z / dx_p.z * A.z;
-
-
-        Vec4 { t, x, y, z }
-    }
-
-    pub fn lortenz_transform(&self, v: f64) -> Self {
-        let β = v.powi(2) / C_SQ;
-        let γ = 1. / (1. - β).sqrt();
-
-        #[rustfmt::skip]
-        let mat = Mat4::new([
-           γ, -γ * β, 0., 0.,
-           -γ * β, γ,  0., 0.,
-           0., 0., 1., 0.,
-           0., 0., 0., 1.,
-        ]);
-
-        // todo: Is this right, or do you need to invert t?
-        mat.dot(&self.as_upper())
-    }
-}
-
-/// C+P from Metric Tensor, with changes A/R. Combine with other tensors like Metric A/R.
-/// Can be used to generate the Einstein tensor.
-pub struct StressEnergyTensor {
-    // /// Configuration of indices
-    // config: Tensor2Config,
-    /// Matrix representation: A 4x4 matrix of minkowski space. This is in UU config. ie g^{m n}.
-    /// We get other configs using our `as_config` method.
-    matrix_uu: Mat4,
-}
-
-impl StressEnergyTensor {
-    pub fn as_config(&self, config: Tensor2Config) -> Mat4 {
-        // todo
-        match config {
-            Tensor2Config::Uu => self.matrix_uu,
-            Tensor2Config::Ul => {
-                let a = ETA_MINKOWSKI * self.matrix;
-            }
-            Tensor2Config::Lu => {}
-            Tensor2Config::Ll => self.matrix_uu.inverse().unwrap(),
-        }
-    }
-
-    /// Return the matrix rep of the Einstein tensor, as a UU config.
-    pub fn get_einstein_tensor(&self) -> Mat4 {
-        self.matrix_uu * 4. * TAU * G
-    }
-}
-
-/// https://github.com/einsteinpy/einsteinpy/blob/main/src/einsteinpy/metric/base_metric.py
-/// A metric tensor of order (2? 3?)
-/// An example: https://docs.einsteinpy.org/en/stable/_modules/einsteinpy/symbolic/metric.html#MetricTensor
-///
-/// See the accepted answer here for a nice explanation: https://math.stackexchange.com/questions/1410793/matrix-representations-of-tensors
-pub struct MetricTensor {
-    // /// Configuration of indices
-    // config: Tensor2Config,
-    /// Matrix representation: A 4x4 matrix of minkowski space. This is in UU config. ie g^{m n}.
-    /// We get other configs using our `as_config` method.
-    pub matrix_uu: Mat4,
-}
-
-impl MetricTensor {
-    // todo: Should bases be a matrix, or 4 vecs?
-    /// `bases` is a matrix, where each column is a coordinate basis vector.
-    /// todo: Minkowski 4 vecs, or normal?
-    // pub fn from_coordinate_bases(bases: &Mat4) -> Self {
-    pub fn from_coordinate_bases(e_t: Vec4Minkowski, e_x: Vec4Minkowski,
-                                 e_y: Vec4Minkowski, e_z: Vec4Minkowski) -> Self {
-        // todo: Can we use matrix multiplication etc for this?
-        // todo: Is this directly our upper (or lower???) matrix?
-
-        // todo: We are using upper indices for all. is this what we want?
-
-        let t = e_t.value_upper;
-        let x = e_x.value_upper;
-        let y = e_y.value_upper;
-        let z = e_z.value_upper;
-
-        // col-major. Upper-indexed.
-        let mut g = [0; 16];
-
-        // todo: Isn't the notation to use dot products?
-        g[0] = t.t.dot(b.t);
-        g[1] = t.x.dot(b.t);
-        g[2] = t.y.dot(b.t);
-        g[3] = t.z.dot(b.t);
-        g[4] = t.t.dot(b.x);
-        g[5] = t.x.dot(b.x);
-        g[6] = t.y.dot(b.x);
-        g[7] = t.z.dot(b.x);
-        g[8] = t.t.dot(b.y);
-        g[9] = t.x.dot(b.y);
-        g[10] = t.y.dot(b.y);
-        g[11] = t.z.dot(b.y);
-        g[12] = t.t.dot(b.z);
-        g[13] = t.x.dot(b.z);
-        g[14] = t.y.dot(b.z);
-        g[15] = t.z.dot(b.z);
-
-        Self { matrix_uu: Mat4 { data: g }) }
-
-
-    }
-
-    pub fn as_config(&self, config: Tensor2Config) -> Mat4 {
-        // todo
-        match config {
-            Tensor2Config::Uu => self.matrix_uu,
-            Tensor2Config::Ul => {
-                let a = ETA_MINKOWSKI * self.matrix;
-            }
-            Tensor2Config::Lu => {}
-            Tensor2Config::Ll => self.matrix_uu.inverse().unwrap(),
-        }
-    }
-
-    /// Take the inner product of 2 vectors, using this metric; V·V = g_{mn} V^m V^n
-    pub fn inner_product(&self, vec_a: Vec4Minkowski, vec_b: Vec4Minkowski) -> Vec4 {
-        // todo: Is this equiv? Check and/or ask. Inconclusive result from
-        // todo writing it out. Try writing it out again once you've properly lowered/uppered
-        // todo indices A/R.
-        (self.matrix_uu * vec_a.as_lower(self)) * vec_b.as_lower(self)
-
-        // todo: Maybe methods on *this* struct?
-        // let g = self.as_config(Tensor2Config::Ll).data; // todo?
-        // let a = vec_a.as_upper();
-        // let b = vec_b.as_upper();
-        //
-        // // todo: Consider method on mat to get readable indexes.
-        // g[0] * a.t * b.t + g[1] * a.x * b.t + g[2] * a.y * b.t + g[3] * a.z * b.t +
-        // g[4] * a.t * b.x + g[5] * a.x * b.c + g[6] * a.y * b.c + g[7] * a.z * b.x +
-        // g[8] * a.t * b.y + g[9] * a.x * b.y + g[10] * a.y * b.y + g[11] * a.z * b.y +
-        // g[12] * a.t * b.z + g[13] * a.x * b.z + g[14] * a.y * b.z + g[15] * a.z * b.z
-    }
-}
-
-// /// todo: As method of Christoffel instead?
-// pub fn to_christoffel(&self) -> Christoffel {
-//     let term1 = self(a).diff(b, c);
-//     let term2 = self(b).diff(a, c);
-//     let term3 = self(c).diff(a, b);
-//
-//     0.5 * self.matrix * (term1 + term2 - term3)
-// }
-
-// /// Returns the inverse of the Metric.
-// /// Returns contravariant Metric if it is originally covariant or vice-versa.
-// pub fn inverse(&self) -> Option<Mat4> {
-//     self.matrix.inverse()
-// }
-//
-// /// Changes the index configuration(contravariant/covariant)
-// /// todo: N/A for metric tensor.
-// pub fn _change_config(&mut self, config: TensorConfig) {
-//
-// }
-//
-// /// Returns a covariant instance of the given metric tensor.
-// ///same instance if the configuration is already lower or
-// /// inverse of given metric if configuration is upper
-// pub fn lower_config(&self) -> Self {
-//
-// }
-//
-// /// Performs a Lorentz transform on the tensor.
-// pub fn lorentz_transform(&self, transformation_matrix: i8) -> Self {
-//
-// }
-
-/// https://github.com/wojciechczaja/GraviPy/blob/master/gravipy/tensorial.py
-pub struct ReimannTensor {
-    pub coords: [f64; 1],
-    pub con: i8,
-    pub components: [f64; 1],
-    pub index_values: [i8; 1],
-}
-
-impl ReimannTensor {}
-
-/// https://github.com/wojciechczaja/GraviPy/blob/master/gravipy/tensorial.py
-pub struct RicciTensor {
-    pub coords: [f64; 1],
-    pub con: i8,
-    pub components: [f64; 20],
-    pub index_values: [i8; 1],
-}
-
-impl RicciTensor {
-    pub fn new() -> Self {}
-
-    pub fn compute_covaraiant_component(&self) -> f64 {}
-
-    pub fn scaler(&self) -> f64 {}
-}
-
-pub struct EinsteinTensor {
-    pub coords: [f64; 1],
-    pub con: i8,
-    pub components: [f64; 1],
-    pub index_values: [i8; 1],
-}
-
-impl EinsteinTensor {
-    pub fn new(ricci: &RicciTensor) {}
-}
-
-pub struct GeodesicTensor {}
 
 struct Particle {
     pub posit: Vec3,
@@ -349,14 +50,48 @@ pub struct State {
     field_metric: Arr3dMetric,
 }
 
-/// Make a new 3D grid of position, time 4-vecs in Minknowski space
-pub fn new_data_vec(n: usize) -> Arr3d4Vec {
+// todo: This is next.
+// fn compute_geodesic(
+//     grid_posits: Arr3dVec,
+//     metrics: Arr3dMetric,
+//     starting_posit: Vec4Minkowski,
+// ) -> Vec<Vec4Minkowski> {
+//
+// }
+
+// /// Make a new 3D grid of position, time 4-vecs in Minknowski space
+// pub fn new_data_vec(n: usize) -> Arr3dVec4 {
+//     let mut z = Vec::new();
+//     z.resize(
+//         n,
+//         Vec4Minkowski {
+//             value_upper: Vec4 {
+//                 t: 1.,
+//                 x: 0.,
+//                 y: 0.,
+//                 z: 0.,
+//             },
+//         },
+//     );
+//
+//     let mut y = Vec::new();
+//     y.resize(n, z);
+//
+//     let mut x = Vec::new();
+//     x.resize(n, y);
+//
+//     x
+// }
+
+/// Make a new 3D grid of Metric tensors. Used to model the curvature of space.
+/// Defaults to the identity transform, ie flat space.
+pub fn new_data_metric(n: usize) -> Arr3dMetric {
     let mut z = Vec::new();
+
     z.resize(
         n,
-        Vec4Minkowski {
-            t: 0.,
-            x_y_z: Vec3::new_zero(),
+        MetricTensor {
+            matrix_ll: Mat4::new_identity(),
         },
     );
 
@@ -369,18 +104,10 @@ pub fn new_data_vec(n: usize) -> Arr3d4Vec {
     x
 }
 
-// todo: Do we need Einstein tensors here, or are metrics sufficient?
-fn compute_geodesic(
-    grid_posits: Arr3dVec,
-    metrics: Arr3dMetric,
-    starting_posit: Vec4Minkowski,
-) -> Vec<Vec4Minkowski> {
-}
-
 fn main() {
-    let state = State {
-        particles: Vec::new(),
-    };
+    // let state = State {
+    //     particles: Vec::new(),
+    // };
 
-    render::render(state);
+    // render::render(state);
 }
