@@ -44,16 +44,15 @@ impl Vec4 {
     }
 }
 
-#[derie(Clone, Copy)]
-enum V4Comp {
+#[derive(Clone, Copy)]
+/// Represents a component of a 4-vector in Minkowski space. Compact syntax sacrifices explicitness
+/// for code readability since it appears in groups.
+pub enum Comp {
     T,
     X,
     Y,
     Z,
 }
-
-/// Christoffel symbol.
-pub struct Christoffel {}
 
 /// 4-vector in Minkowski coordinates. Capable of representations in covariant and
 /// contravariant forms. Invariant.
@@ -76,25 +75,28 @@ impl Vec4Minkowski {
         let V = &self.value_upper;
 
         // m = t
-        let t = g.val(V4Comp::T, V4Comp::T) * V.t
-            + g.val(V4Comp::T, V4Comp::X) * V.x
-            + g.val(V4Comp::T, V4Comp::Y) * V.y
-            + g.val(V4Comp::T, V4Comp::Z) * V.z;
+        let t = g.val(Comp::T, Comp::T) * V.t
+            + g.val(Comp::T, Comp::X) * V.x
+            + g.val(Comp::T, Comp::Y) * V.y
+            + g.val(Comp::T, Comp::Z) * V.z;
 
-        let x = g.val(V4Comp::X, V4Comp::T) * V.t
-            + g.val(V4Comp::T, V4Comp::X) * V.x
-            + g.val(V4Comp::T, V4Comp::Y) * V.y
-            + g.val(V4Comp::T, V4Comp::Z) * V.z;
+        // m = x
+        let x = g.val(Comp::X, Comp::T) * V.t
+            + g.val(Comp::X, Comp::X) * V.x
+            + g.val(Comp::X, Comp::Y) * V.y
+            + g.val(Comp::X, Comp::Z) * V.z;
 
-        let y = g.val(V4Comp::Y, V4Comp::T) * V.t
-            + g.val(V4Comp::T, V4Comp::X) * V.x
-            + g.val(V4Comp::T, V4Comp::Y) * V.y
-            + g.val(V4Comp::T, V4Comp::Z) * V.z;
+        // m = y
+        let y = g.val(Comp::Y, Comp::T) * V.t
+            + g.val(Comp::Y, Comp::X) * V.x
+            + g.val(Comp::Y, Comp::Y) * V.y
+            + g.val(Comp::Y, Comp::Z) * V.z;
 
-        let z = g.val(V4Comp::Z, V4Comp::T) * V.t
-            + g.val(V4Comp::T, V4Comp::X) * V.x
-            + g.val(V4Comp::T, V4Comp::Y) * V.y
-            + g.val(V4Comp::T, V4Comp::Z) * V.z;
+        // m = z
+        let z = g.val(Comp::Z, Comp::T) * V.t
+            + g.val(Comp::Z, Comp::X) * V.x
+            + g.val(Comp::Z, Comp::Y) * V.y
+            + g.val(Comp::Z, Comp::Z) * V.z;
 
         Vec4 { t, x, y, z }
     }
@@ -213,28 +215,28 @@ impl MetricTensor {
         };
 
         // For g_{m n}, m = t
-        *g.val_mut(V4Comp::T, V4Comp::T) = e_t.dot(e_t); // n = t
-        *g.val_mut(V4Comp::T, V4Comp::X) = e_t.dot(e_x); // n = x
-        *g.val_mut(V4Comp::T, V4Comp::Y) = e_t.dot(e_y); // n = y
-        *g.val_mut(V4Comp::T, V4Comp::Z) = e_t.dot(e_z); // n = z
+        *g.val_mut(Comp::T, Comp::T) = e_t.dot(e_t); // n = t
+        *g.val_mut(Comp::T, Comp::X) = e_t.dot(e_x); // n = x
+        *g.val_mut(Comp::T, Comp::Y) = e_t.dot(e_y); // n = y
+        *g.val_mut(Comp::T, Comp::Z) = e_t.dot(e_z); // n = z
 
         // For g_{m n}, m = x
-        *g.val_mut(V4Comp::X, V4Comp::T) = e_x.dot(e_t); // n = x ( etc for the rest; follow the pattern)
-        *g.val_mut(V4Comp::X, V4Comp::X) = e_x.dot(e_x);
-        *g.val_mut(V4Comp::X, V4Comp::Y) = e_x.dot(e_y);
-        *g.val_mut(V4Comp::X, V4Comp::Z) = e_x.dot(e_z);
+        *g.val_mut(Comp::X, Comp::T) = e_x.dot(e_t); // n = x ( etc for the rest; follow the pattern)
+        *g.val_mut(Comp::X, Comp::X) = e_x.dot(e_x);
+        *g.val_mut(Comp::X, Comp::Y) = e_x.dot(e_y);
+        *g.val_mut(Comp::X, Comp::Z) = e_x.dot(e_z);
 
         // For g_{m n}, m = y
-        *g.val_mut(V4Comp::Y, V4Comp::T) = e_y.dot(e_t);
-        *g.val_mut(V4Comp::Y, V4Comp::X) = e_y.dot(e_x);
-        *g.val_mut(V4Comp::Y, V4Comp::Y) = e_y.dot(e_y);
-        *g.val_mut(V4Comp::Y, V4Comp::Z) = e_y.dot(e_z);
+        *g.val_mut(Comp::Y, Comp::T) = e_y.dot(e_t);
+        *g.val_mut(Comp::Y, Comp::X) = e_y.dot(e_x);
+        *g.val_mut(Comp::Y, Comp::Y) = e_y.dot(e_y);
+        *g.val_mut(Comp::Y, Comp::Z) = e_y.dot(e_z);
 
         // For g_{m n}, m = z
-        *g.val_mut(V4Comp::Z, V4Comp::T) = e_z.dot(e_t);
-        *g.val_mut(V4Comp::Z, V4Comp::X) = e_z.dot(e_x);
-        *g.val_mut(V4Comp::Z, V4Comp::Y) = e_z.dot(e_y);
-        *g.val_mut(V4Comp::Z, V4Comp::Z) = e_z.dot(e_z);
+        *g.val_mut(Comp::Z, Comp::T) = e_z.dot(e_t);
+        *g.val_mut(Comp::Z, Comp::X) = e_z.dot(e_x);
+        *g.val_mut(Comp::Z, Comp::Y) = e_z.dot(e_y);
+        *g.val_mut(Comp::Z, Comp::Z) = e_z.dot(e_z);
 
         g
     }
@@ -260,91 +262,96 @@ impl MetricTensor {
         let a = vec_a.as_upper();
         let b = vec_b.as_upper();
 
-        self.val(V4Comp::T, V4Comp::T) * a.t * b.t
-            + self.val(V4Comp::T, V4Comp::X) * a.t * b.x
-            + self.val(V4Comp::T, V4Comp::Y) * a.t * b.y
-            + self.val(V4Comp::T, V4Comp::Z) * a.t * b.z
-            + self.val(V4Comp::X, V4Comp::T) * a.x * b.t
-            + self.val(V4Comp::X, V4Comp::X) * a.x * b.x
-            + self.val(V4Comp::X, V4Comp::Y) * a.x * b.y
-            + self.val(V4Comp::X, V4Comp::Z) * a.x * b.z
-            + self.val(V4Comp::Y, V4Comp::T) * a.y * b.t
-            + self.val(V4Comp::Y, V4Comp::X) * a.y * b.x
-            + self.val(V4Comp::Y, V4Comp::Y) * a.y * b.y
-            + self.val(V4Comp::Y, V4Comp::Z) * a.y * b.z
-            + self.val(V4Comp::Z, V4Comp::T) * a.z * b.t
-            + self.val(V4Comp::Z, V4Comp::X) * a.z * b.x
-            + self.val(V4Comp::Z, V4Comp::Y) * a.z * b.y
-            + self.val(V4Comp::Z, V4Comp::Z) * a.z * b.z
+        self.val(Comp::T, Comp::T) * a.t * b.t
+            + self.val(Comp::T, Comp::X) * a.t * b.x
+            + self.val(Comp::T, Comp::Y) * a.t * b.y
+            + self.val(Comp::T, Comp::Z) * a.t * b.z
+            + self.val(Comp::X, Comp::T) * a.x * b.t
+            + self.val(Comp::X, Comp::X) * a.x * b.x
+            + self.val(Comp::X, Comp::Y) * a.x * b.y
+            + self.val(Comp::X, Comp::Z) * a.x * b.z
+            + self.val(Comp::Y, Comp::T) * a.y * b.t
+            + self.val(Comp::Y, Comp::X) * a.y * b.x
+            + self.val(Comp::Y, Comp::Y) * a.y * b.y
+            + self.val(Comp::Y, Comp::Z) * a.y * b.z
+            + self.val(Comp::Z, Comp::T) * a.z * b.t
+            + self.val(Comp::Z, Comp::X) * a.z * b.x
+            + self.val(Comp::Z, Comp::Y) * a.z * b.y
+            + self.val(Comp::Z, Comp::Z) * a.z * b.z
     }
 
     /// Get a specific matrix component. This keeps code that uses this matrix consistent
     /// with conventions. Assumptions: Column-major array representation of the matrix, and
     /// the internal matrix is in lower-lower representation.
-    pub fn val(&self, m: V4Comp, n: V4Comp) -> f64 {
+    pub fn val(&self, μ: Comp, ν: Comp) -> f64 {
         // todo: Order? Is this reversed?
-        match m {
-            V4Comp::T => match n {
-                V4Comp::T => self.matrix_ll.data[0],
-                V4Comp::X => self.matrix_ll.data[1],
-                V4Comp::Y => self.matrix_ll.data[2],
-                V4Comp::Z => self.matrix_ll.data[3],
+
+        let g = &self.matrix_ll.data;
+
+        match μ {
+            Comp::T => match ν {
+                Comp::T => g[0],
+                Comp::X => g[1],
+                Comp::Y => g[2],
+                Comp::Z => g[3],
             },
 
-            V4Comp::X => match n {
-                V4Comp::T => self.matrix_ll.data[4],
-                V4Comp::X => self.matrix_ll.data[5],
-                V4Comp::Y => self.matrix_ll.data[6],
-                V4Comp::Z => self.matrix_ll.data[7],
+            Comp::X => match ν {
+                Comp::T => g[4],
+                Comp::X => g[5],
+                Comp::Y => g[6],
+                Comp::Z => g[7],
             },
 
-            V4Comp::Y => match n {
-                V4Comp::T => self.matrix_ll.data[8],
-                V4Comp::X => self.matrix_ll.data[9],
-                V4Comp::Y => self.matrix_ll.data[10],
-                V4Comp::Z => self.matrix_ll.data[11],
+            Comp::Y => match ν {
+                Comp::T => g[8],
+                Comp::X => g[9],
+                Comp::Y => g[10],
+                Comp::Z => g[11],
             },
 
-            V4Comp::Z => match n {
-                V4Comp::T => self.matrix_ll.data[12],
-                V4Comp::X => self.matrix_ll.data[13],
-                V4Comp::Y => self.matrix_ll.data[14],
-                V4Comp::Z => self.matrix_ll.data[15],
+            Comp::Z => match ν {
+                Comp::T => g[12],
+                Comp::X => g[13],
+                Comp::Y => g[14],
+                Comp::Z => g[15],
             },
         }
     }
 
     /// Similar to `val`, but mutable.
     /// todo: DRY with `.val`
-    pub fn val_mut(&mut self, m: V4Comp, n: V4Comp) -> &mut f64 {
+    pub fn val_mut(&mut self, μ: Comp, ν: Comp) -> &mut f64 {
+        let g = &mut self.matrix_ll.data;
+
         // todo: Same order caveat as with Val.
-        &mut match m {
-            V4Comp::T => match n {
-                V4Comp::T => self.matrix_ll.data[0],
-                V4Comp::X => self.matrix_ll.data[1],
-                V4Comp::Y => self.matrix_ll.data[2],
-                V4Comp::Z => self.matrix_ll.data[3],
+        &mut match μ {
+            Comp::T => match ν {
+                Comp::T => g[0],
+                Comp::X => g[1],
+                Comp::Y => g[2],
+                Comp::Z => g[3],
             },
 
-            V4Comp::X => match n {
-                V4Comp::T => self.matrix_ll.data[4],
-                V4Comp::X => self.matrix_ll.data[5],
-                V4Comp::Y => self.matrix_ll.data[6],
-                V4Comp::Z => self.matrix_ll.data[7],
+            Comp::X => match ν {
+                Comp::T => g[4],
+                Comp::X => g[5],
+                Comp::Y => g[6],
+                Comp::Z => g[7],
             },
 
-            V4Comp::Y => match n {
-                V4Comp::T => self.matrix_ll.data[8],
-                V4Comp::X => self.matrix_ll.data[9],
-                V4Comp::Y => self.matrix_ll.data[10],
-                V4Comp::Z => self.matrix_ll.data[11],
+            Comp::Y => match ν {
+                Comp::T => g[8],
+                Comp::X => g[9],
+                Comp::Y => g[10],
+                Comp::Z => g[11],
             },
 
-            V4Comp::Z => match n {
-                V4Comp::T => self.matrix_ll.data[12],
-                V4Comp::X => self.matrix_ll.data[13],
-                V4Comp::Y => self.matrix_ll.data[14],
-                V4Comp::Z => self.matrix_ll.data[15],
+            Comp::Z => match ν {
+                Comp::T => g[12],
+                Comp::X => g[13],
+                Comp::Y => g[14],
+                Comp::Z => g[15],
             },
         }
     }
