@@ -5,7 +5,7 @@ use std::f64::consts::TAU;
 
 use lin_alg2::f64::Mat4;
 
-use crate::G;
+use crate::{G, C};
 
 #[rustfmt::skip]
 const ETA_MINKOWSKI: Mat4 = Mat4 { data: [
@@ -47,7 +47,7 @@ impl Vec4 {
 #[derive(Clone, Copy)]
 /// Represents a component of a 4-vector in Minkowski space. Compact syntax sacrifices explicitness
 /// for code readability since it appears in groups.
-pub enum Comp {
+pub enum V4Component {
     T,
     X,
     Y,
@@ -75,28 +75,28 @@ impl Vec4Minkowski {
         let V = &self.value_upper;
 
         // m = t
-        let t = g.val(Comp::T, Comp::T) * V.t
-            + g.val(Comp::T, Comp::X) * V.x
-            + g.val(Comp::T, Comp::Y) * V.y
-            + g.val(Comp::T, Comp::Z) * V.z;
+        let t = g.val(C::T, C::T) * V.t
+            + g.val(C::T, C::X) * V.x
+            + g.val(C::T, C::Y) * V.y
+            + g.val(C::T, C::Z) * V.z;
 
         // m = x
-        let x = g.val(Comp::X, Comp::T) * V.t
-            + g.val(Comp::X, Comp::X) * V.x
-            + g.val(Comp::X, Comp::Y) * V.y
-            + g.val(Comp::X, Comp::Z) * V.z;
+        let x = g.val(C::X, C::T) * V.t
+            + g.val(C::X, C::X) * V.x
+            + g.val(C::X, C::Y) * V.y
+            + g.val(C::X, C::Z) * V.z;
 
         // m = y
-        let y = g.val(Comp::Y, Comp::T) * V.t
-            + g.val(Comp::Y, Comp::X) * V.x
-            + g.val(Comp::Y, Comp::Y) * V.y
-            + g.val(Comp::Y, Comp::Z) * V.z;
+        let y = g.val(C::Y, C::T) * V.t
+            + g.val(C::Y, C::X) * V.x
+            + g.val(C::Y, C::Y) * V.y
+            + g.val(C::Y, C::Z) * V.z;
 
         // m = z
-        let z = g.val(Comp::Z, Comp::T) * V.t
-            + g.val(Comp::Z, Comp::X) * V.x
-            + g.val(Comp::Z, Comp::Y) * V.y
-            + g.val(Comp::Z, Comp::Z) * V.z;
+        let z = g.val(C::Z, C::T) * V.t
+            + g.val(C::Z, C::X) * V.x
+            + g.val(C::Z, C::Y) * V.y
+            + g.val(C::Z, C::Z) * V.z;
 
         Vec4 { t, x, y, z }
     }
@@ -215,32 +215,35 @@ impl MetricTensor {
         };
 
         // For g_{m n}, m = t
-        *g.val_mut(Comp::T, Comp::T) = e_t.dot(e_t); // n = t
-        *g.val_mut(Comp::T, Comp::X) = e_t.dot(e_x); // n = x
-        *g.val_mut(Comp::T, Comp::Y) = e_t.dot(e_y); // n = y
-        *g.val_mut(Comp::T, Comp::Z) = e_t.dot(e_z); // n = z
+        *g.val_mut(C::T, C::T) = e_t.dot(e_t); // n = t
+        *g.val_mut(C::T, C::X) = e_t.dot(e_x); // n = x
+        *g.val_mut(C::T, C::Y) = e_t.dot(e_y); // n = y
+        *g.val_mut(C::T, C::Z) = e_t.dot(e_z); // n = z
 
         // For g_{m n}, m = x
-        *g.val_mut(Comp::X, Comp::T) = e_x.dot(e_t); // n = x ( etc for the rest; follow the pattern)
-        *g.val_mut(Comp::X, Comp::X) = e_x.dot(e_x);
-        *g.val_mut(Comp::X, Comp::Y) = e_x.dot(e_y);
-        *g.val_mut(Comp::X, Comp::Z) = e_x.dot(e_z);
+        *g.val_mut(C::X, C::T) = e_x.dot(e_t); // n = x ( etc for the rest; follow the pattern)
+        *g.val_mut(C::X, C::X) = e_x.dot(e_x);
+        *g.val_mut(C::X, C::Y) = e_x.dot(e_y);
+        *g.val_mut(C::X, C::Z) = e_x.dot(e_z);
 
         // For g_{m n}, m = y
-        *g.val_mut(Comp::Y, Comp::T) = e_y.dot(e_t);
-        *g.val_mut(Comp::Y, Comp::X) = e_y.dot(e_x);
-        *g.val_mut(Comp::Y, Comp::Y) = e_y.dot(e_y);
-        *g.val_mut(Comp::Y, Comp::Z) = e_y.dot(e_z);
+        *g.val_mut(C::Y, C::T) = e_y.dot(e_t);
+        *g.val_mut(C::Y, C::X) = e_y.dot(e_x);
+        *g.val_mut(C::Y, C::Y) = e_y.dot(e_y);
+        *g.val_mut(C::Y, C::Z) = e_y.dot(e_z);
 
         // For g_{m n}, m = z
-        *g.val_mut(Comp::Z, Comp::T) = e_z.dot(e_t);
-        *g.val_mut(Comp::Z, Comp::X) = e_z.dot(e_x);
-        *g.val_mut(Comp::Z, Comp::Y) = e_z.dot(e_y);
-        *g.val_mut(Comp::Z, Comp::Z) = e_z.dot(e_z);
+        *g.val_mut(C::Z, C::T) = e_z.dot(e_t);
+        *g.val_mut(C::Z, C::X) = e_z.dot(e_x);
+        *g.val_mut(C::Z, C::Y) = e_z.dot(e_y);
+        *g.val_mut(C::Z, C::Z) = e_z.dot(e_z);
 
         g
     }
 
+
+    // todo :You need some method of getting by named index *while in a different config*; ie you have an immediate
+    // todo need to do that with a UU config now for finding christoffel symbols.
     pub fn as_config(&self, config: Tensor2Config) -> Mat4 {
         match config {
             Tensor2Config::Uu => self.matrix_ll.inverse().unwrap(),
@@ -262,96 +265,96 @@ impl MetricTensor {
         let a = vec_a.as_upper();
         let b = vec_b.as_upper();
 
-        self.val(Comp::T, Comp::T) * a.t * b.t
-            + self.val(Comp::T, Comp::X) * a.t * b.x
-            + self.val(Comp::T, Comp::Y) * a.t * b.y
-            + self.val(Comp::T, Comp::Z) * a.t * b.z
-            + self.val(Comp::X, Comp::T) * a.x * b.t
-            + self.val(Comp::X, Comp::X) * a.x * b.x
-            + self.val(Comp::X, Comp::Y) * a.x * b.y
-            + self.val(Comp::X, Comp::Z) * a.x * b.z
-            + self.val(Comp::Y, Comp::T) * a.y * b.t
-            + self.val(Comp::Y, Comp::X) * a.y * b.x
-            + self.val(Comp::Y, Comp::Y) * a.y * b.y
-            + self.val(Comp::Y, Comp::Z) * a.y * b.z
-            + self.val(Comp::Z, Comp::T) * a.z * b.t
-            + self.val(Comp::Z, Comp::X) * a.z * b.x
-            + self.val(Comp::Z, Comp::Y) * a.z * b.y
-            + self.val(Comp::Z, Comp::Z) * a.z * b.z
+        self.val(C::T, C::T) * a.t * b.t
+            + self.val(C::T, C::X) * a.t * b.x
+            + self.val(C::T, C::Y) * a.t * b.y
+            + self.val(C::T, C::Z) * a.t * b.z
+            + self.val(C::X, C::T) * a.x * b.t
+            + self.val(C::X, C::X) * a.x * b.x
+            + self.val(C::X, C::Y) * a.x * b.y
+            + self.val(C::X, C::Z) * a.x * b.z
+            + self.val(C::Y, C::T) * a.y * b.t
+            + self.val(C::Y, C::X) * a.y * b.x
+            + self.val(C::Y, C::Y) * a.y * b.y
+            + self.val(C::Y, C::Z) * a.y * b.z
+            + self.val(C::Z, C::T) * a.z * b.t
+            + self.val(C::Z, C::X) * a.z * b.x
+            + self.val(C::Z, C::Y) * a.z * b.y
+            + self.val(C::Z, C::Z) * a.z * b.z
     }
 
     /// Get a specific matrix component. This keeps code that uses this matrix consistent
     /// with conventions. Assumptions: Column-major array representation of the matrix, and
     /// the internal matrix is in lower-lower representation.
-    pub fn val(&self, μ: Comp, ν: Comp) -> f64 {
+    pub fn val(&self, μ: V4Component, ν: V4Component) -> f64 {
         // todo: Order? Is this reversed?
 
         let g = &self.matrix_ll.data;
 
         match μ {
-            Comp::T => match ν {
-                Comp::T => g[0],
-                Comp::X => g[1],
-                Comp::Y => g[2],
-                Comp::Z => g[3],
+            C::T => match ν {
+                C::T => g[0],
+                C::X => g[1],
+                C::Y => g[2],
+                C::Z => g[3],
             },
 
-            Comp::X => match ν {
-                Comp::T => g[4],
-                Comp::X => g[5],
-                Comp::Y => g[6],
-                Comp::Z => g[7],
+            C::X => match ν {
+                C::T => g[4],
+                C::X => g[5],
+                C::Y => g[6],
+                C::Z => g[7],
             },
 
-            Comp::Y => match ν {
-                Comp::T => g[8],
-                Comp::X => g[9],
-                Comp::Y => g[10],
-                Comp::Z => g[11],
+            C::Y => match ν {
+                C::T => g[8],
+                C::X => g[9],
+                C::Y => g[10],
+                C::Z => g[11],
             },
 
-            Comp::Z => match ν {
-                Comp::T => g[12],
-                Comp::X => g[13],
-                Comp::Y => g[14],
-                Comp::Z => g[15],
+            C::Z => match ν {
+                C::T => g[12],
+                C::X => g[13],
+                C::Y => g[14],
+                C::Z => g[15],
             },
         }
     }
 
     /// Similar to `val`, but mutable.
     /// todo: DRY with `.val`
-    pub fn val_mut(&mut self, μ: Comp, ν: Comp) -> &mut f64 {
+    pub fn val_mut(&mut self, μ: V4Component, ν: V4Component) -> &mut f64 {
         let g = &mut self.matrix_ll.data;
 
         // todo: Same order caveat as with Val.
         &mut match μ {
-            Comp::T => match ν {
-                Comp::T => g[0],
-                Comp::X => g[1],
-                Comp::Y => g[2],
-                Comp::Z => g[3],
+            C::T => match ν {
+                C::T => g[0],
+                C::X => g[1],
+                C::Y => g[2],
+                C::Z => g[3],
             },
 
-            Comp::X => match ν {
-                Comp::T => g[4],
-                Comp::X => g[5],
-                Comp::Y => g[6],
-                Comp::Z => g[7],
+            C::X => match ν {
+                C::T => g[4],
+                C::X => g[5],
+                C::Y => g[6],
+                C::Z => g[7],
             },
 
-            Comp::Y => match ν {
-                Comp::T => g[8],
-                Comp::X => g[9],
-                Comp::Y => g[10],
-                Comp::Z => g[11],
+            C::Y => match ν {
+                C::T => g[8],
+                C::X => g[9],
+                C::Y => g[10],
+                C::Z => g[11],
             },
 
-            Comp::Z => match ν {
-                Comp::T => g[12],
-                Comp::X => g[13],
-                Comp::Y => g[14],
-                Comp::Z => g[15],
+            C::Z => match ν {
+                C::T => g[12],
+                C::X => g[13],
+                C::Y => g[14],
+                C::Z => g[15],
             },
         }
     }

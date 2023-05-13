@@ -32,12 +32,25 @@ const G: f64 = 1.; // todo: Change A/R.
 // pub type Arr3dReal = Vec<Vec<Vec<f64>>>;
 // pub type Arr3d = Vec<Vec<Vec<Cplx>>>;
 // pub type Arr3dVec = Vec<Vec<Vec<Vec3>>>;
-pub type Arr3dVec4 = Vec<Vec<Vec<Vec4Minkowski>>>;
-pub type Arr3dMetric = Vec<Vec<Vec<MetricTensor>>>;
+// pub type Arr3dVec4 = Vec<Vec<Vec<Vec4Minkowski>>>;
+// pub type Arr3dMetric = Vec<Vec<Vec<MetricTensor>>>;
+pub type Arr4dVec4 = Vec<Vec<Vec<Vec<Vec4Minkowski>>>>;
+pub type Arr4dMetric = Vec<Vec<Vec<Vec<MetricTensor>>>>;
 
 // todo: Consider the form of this.
 fn gamma(v: f64) -> f64 {
     1. / (1. - v.powi(2) / C_SQ).sqrt()
+}
+
+// Our equations make heavy use of this; keep things terse.
+pub type C = tensors::V4Component;
+
+/// Used for indexing into spacetime grids, eg for metric tensors.
+pub struct PositIndex {
+    pub t: usize,
+    pub x: usize,
+    pub y: usize,
+    pub z: usize
 }
 
 struct Particle {
@@ -47,20 +60,45 @@ struct Particle {
 
 pub struct State {
     particles: Vec<Particle>,
-    field_grav: Arr3dReal,
-    field_metric: Arr3dMetric,
+    field_grav: Arr4dReal,
+    field_metric: Arr4dMetric,
 }
 
-// todo: Geodesic struct?
+/// The path a particle takes through spacetime. Can be a geodesic.
+pub struct Worldline {
+    /// A list of events, with constant proper-time spacing.
+    pub events: Vec<Vec4Minkowski>,
+    /// Defines the spacing between events. A smaller spacing is more precise.
+    /// todo: Maybe this isn't general, ie doesn't apply if mass is 0, like for photons?
+    /// todo In that case, you need something else. (Proper time is 0 along a photon's worldline)
+    /// todo: Is this unit meters, seconds, or something else?
+    pub dτ: f64,
+}
 
-/// Find a geodesic
-pub fn compute_geodesic(
-    grid_posits: &Arr3dVec4Minkowski,
-    metrics: &Arr3dMetric,
-    posit: &Vec4Minkowski,
-) -> Vec<Vec4Minkowski> {
-    // todo:
-    let Γ = Christoffel::from_metric(metrics, posit);
+impl Default for Worldline {
+    fn default() -> Self {
+        Self { events: Vec::new(), dτ: 1. }
+    }
+}
+
+impl Worldline {
+    /// τ_AB = \int (0, 1) sqrt(-g_μv(x^alpha(\sigma)) dx^u/dsigma dx^v / dsigma) dsigma
+    pub fn calc_proper_time(&self) -> f64 {
+
+    }
+
+    /// Find a geodesic:
+    /// d^2 x^μ / dλ^2 + Γ^μ_ρσ dx^ρ /dλ dx^σ /dλ = 0
+    pub fn find_geodesic(
+        grid_posits: &Arr3dVec4Minkowski,
+        metrics: &Arr3dMetric,
+        posit: &Vec4Minkowski,
+    ) -> Self {
+        // todo:
+        let Γ = Christoffel::from_metric(metrics, posit);
+        // This is a differential equation; solving it may not be a simple fn...
+
+    }
 }
 
 /// Make a new 3D grid of position, time 4-vecs in Minknowski space
