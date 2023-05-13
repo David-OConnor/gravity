@@ -2,15 +2,14 @@
 
 use std::collections::HashMap;
 
-use crate::{
-    tensors::{V4Component, Vec4Minkowski, Tensor2Config},
-    Arr3dMetric,
-    C,
-};
 use crate::tensors::MetricTensor;
+use crate::{
+    tensors::{Tensor2Config, V4Component, Vec4Minkowski},
+    Arr3dMetric, C,
+};
 
 /// We use this for indexing into metric tensor collections used in derivatives.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum PrevNext {
     P,
     N,
@@ -31,7 +30,14 @@ pub struct Christoffel {
 impl Christoffel {
     /// Helper function to calculate a single component. Uses the index convention shown in `from_metric`'s
     /// function description.
-    fn calc_component(λ: C, μ: C, ν: C, g_this: &MetricTensor, g_diffs: &HashMap<(C, PrevNext), &MetricTensor>, ds: f64) -> f64 {
+    fn calc_component(
+        λ: C,
+        μ: C,
+        ν: C,
+        g_this: &MetricTensor,
+        g_diffs: &HashMap<(C, PrevNext), &MetricTensor>,
+        ds: f64,
+    ) -> f64 {
         let mut result = 0.;
 
         // todo: YOu need to divide by d_metric... whatever sort of quantity that is.
@@ -41,11 +47,16 @@ impl Christoffel {
         let u = Tensor2Config::Uu;
 
         for σ in &[C::T, C::X, C::Y, C::Z] {
-            result += g_this.get(λ, σ) * (
-                (g_diffs.get(&(μ, PrevNext::N)).get(ν, σ, u) - g_diffs.get(&(μ, PrevNext::P)).get(ν, σ, u)) * factor +
-                    (g_diffs.get(&(ν, PrevNext::N)).get(μ, σ, u) - g_diffs.get(&(ν, PrevNext::P)).get(μ, σ, u)) * factor -
-                    (g_diffs.get(&(*σ, PrevNext::N)).get(μ, ν, u) - g_diffs.get(&(*σ, PrevNext::P)).get(μ, ν, u)) * factor
-            )
+            result += g_this.val(λ, *σ, u)
+                * ((g_diffs.get(&(μ, PrevNext::N)).unwrap().val(ν, *σ, u)
+                    - g_diffs.get(&(μ, PrevNext::P)).unwrap().val(ν, *σ, u))
+                    * factor
+                    + (g_diffs.get(&(ν, PrevNext::N)).unwrap().val(μ, *σ, u)
+                        - g_diffs.get(&(ν, PrevNext::P)).unwrap().val(μ, *σ, u))
+                        * factor
+                    - (g_diffs.get(&(*σ, PrevNext::N)).unwrap().val(μ, ν, u)
+                        - g_diffs.get(&(*σ, PrevNext::P)).unwrap().val(μ, ν, u))
+                        * factor)
         }
 
         result
@@ -56,7 +67,9 @@ impl Christoffel {
     /// ds is the diff in (what? Spacetime interval? Proper time?) between points
     // pub fn from_metric(metrics: &crate::Arr4dMetric, posit: &Vec4Minkowski, p_i: crate::PositIndex) -> Self {
     pub fn from_metric(metrics: &crate::Arr4dMetric, p_i: crate::PositIndex, ds: f64) -> Self {
-        let mut result = Self { components: [0.; 64] };
+        let mut result = Self {
+            components: [0.; 64],
+        };
 
         // todo: Make sure is aren't at the edges. If so, return etc.
 
@@ -95,15 +108,15 @@ impl Christoffel {
             // We use this to skip degenerate values, since the lower indices are interchangeable.
             // Let's say we tried μ = t, ν = x
             // Then when this comes up: μ = x, ν = t, we skip it.
-            let mut complete_lower_combos = Ve::new();
+            let mut complete_lower_combos = Vec::new();
 
             for μ in &comps {
                 for ν in &comps {
-
                     // Todo: Is there a more elegant way to do this?
                     let mut degen = false;
                     for complete in complete_lower_combos {
-                        if (ν, μ) == complete { // Notice the swapped indices compared.
+                        if (ν, μ) == complete {
+                            // Notice the swapped indices compared.
                             degen = true;
                             break;
                         }
@@ -112,7 +125,8 @@ impl Christoffel {
                         continue;
                     }
 
-                    result.val_mut(*λ, *μ, *ν) += Self::calc_component(*λ, *μ, *ν, &g_this, &metrics);
+                    *result.val_mut(*λ, *μ, *ν) +=
+                        Self::calc_component(*λ, *μ, *ν, &g_this, &metrics, ds);
 
                     complete_lower_combos.push((μ, ν));
                 }
@@ -126,7 +140,7 @@ impl Christoffel {
     /// todo boy: This is a bear.
     /// λ is the upper index.
     pub fn val(&self, λ: V4Component, μ: V4Component, ν: V4Component) -> f64 {
-        let d = &self.components.data;
+        let d = &self.components;
 
         match λ {
             C::T => match μ {
@@ -152,8 +166,8 @@ impl Christoffel {
                 },
 
                 C::Z => match ν {
-                    C::T => d[3], // Degen with 3
-                    C::X => d[7], // Degen with 7
+                    C::T => d[3],  // Degen with 3
+                    C::X => d[7],  // Degen with 7
                     C::Y => d[11], // Degen with 11
                     C::Z => d[15],
                 },
@@ -250,7 +264,7 @@ impl Christoffel {
 
     /// DRY!
     pub fn val_mut(&self, λ: V4Component, μ: V4Component, ν: V4Component) -> &mut f64 {
-        let d = &self.components.data;
+        let d = &self.components;
 
         &mut match λ {
             C::T => match μ {
@@ -276,8 +290,8 @@ impl Christoffel {
                 },
 
                 C::Z => match ν {
-                    C::T => d[3], // Degen with 3
-                    C::X => d[7], // Degen with 7
+                    C::T => d[3],  // Degen with 3
+                    C::X => d[7],  // Degen with 7
                     C::Y => d[11], // Degen with 11
                     C::Z => d[15],
                 },

@@ -50,7 +50,7 @@ pub struct PositIndex {
     pub t: usize,
     pub x: usize,
     pub y: usize,
-    pub z: usize
+    pub z: usize,
 }
 
 struct Particle {
@@ -77,32 +77,35 @@ pub struct Worldline {
 
 impl Default for Worldline {
     fn default() -> Self {
-        Self { events: Vec::new(), dτ: 1. }
+        Self {
+            events: Vec::new(),
+            dτ: 1.,
+        }
     }
 }
 
 impl Worldline {
     /// τ_AB = \int (0, 1) sqrt(-g_μv(x^alpha(\sigma)) dx^u/dsigma dx^v / dsigma) dsigma
     pub fn calc_proper_time(&self) -> f64 {
-
+        0.
     }
 
-    /// Find a geodesic:
-    /// d^2 x^μ / dλ^2 + Γ^μ_ρσ dx^ρ /dλ dx^σ /dλ = 0
-    pub fn find_geodesic(
-        grid_posits: &Arr3dVec4Minkowski,
-        metrics: &Arr3dMetric,
-        posit: &Vec4Minkowski,
-    ) -> Self {
-        // todo:
-        let Γ = Christoffel::from_metric(metrics, posit);
-        // This is a differential equation; solving it may not be a simple fn...
-
-    }
+    // /// Find a geodesic:
+    // /// d^2 x^μ / dλ^2 + Γ^μ_ρσ dx^ρ /dλ dx^σ /dλ = 0
+    // pub fn find_geodesic(
+    //     grid_posits: &Arr3dVec4Minkowski,
+    //     metrics: &Arr3dMetric,
+    //     posit: &Vec4Minkowski,
+    // ) -> Self {
+    //     // todo:
+    //     let Γ = Christoffel::from_metric(metrics, posit);
+    //     // This is a differential equation; solving it may not be a simple fn...
+    //
+    // }
 }
 
 /// Make a new 3D grid of position, time 4-vecs in Minknowski space
-pub fn new_data_vec(n: usize) -> Arr3dVec4 {
+pub fn new_data_vec(n: usize) -> Arr4dVec4 {
     let mut z = Vec::new();
     z.resize(
         n,
@@ -130,12 +133,7 @@ pub fn new_data_vec(n: usize) -> Arr3dVec4 {
 pub fn new_data_metric(n: usize) -> Arr3dMetric {
     let mut z = Vec::new();
 
-    z.resize(
-        n,
-        MetricTensor {
-            matrix_ll: Mat4::new_identity(),
-        },
-    );
+    z.resize(n, MetricTensor::default());
 
     let mut y = Vec::new();
     y.resize(n, z);

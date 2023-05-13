@@ -5,7 +5,7 @@ use std::f64::consts::TAU;
 
 use lin_alg2::f64::Mat4;
 
-use crate::{G, C};
+use crate::{C, G};
 
 #[rustfmt::skip]
 const ETA_MINKOWSKI: Mat4 = Mat4 { data: [
@@ -44,7 +44,7 @@ impl Vec4 {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 /// Represents a component of a 4-vector in Minkowski space. Compact syntax sacrifices explicitness
 /// for code readability since it appears in groups.
 pub enum V4Component {
@@ -74,29 +74,31 @@ impl Vec4Minkowski {
     pub fn as_lower(&self, g: &MetricTensor) -> Vec4 {
         let V = &self.value_upper;
 
+        let l = Tensor2Config::Ll;
+
         // m = t
-        let t = g.val(C::T, C::T) * V.t
-            + g.val(C::T, C::X) * V.x
-            + g.val(C::T, C::Y) * V.y
-            + g.val(C::T, C::Z) * V.z;
+        let t = g.val(C::T, C::T, l) * V.t
+            + g.val(C::T, C::X, l) * V.x
+            + g.val(C::T, C::Y, l) * V.y
+            + g.val(C::T, C::Z, l) * V.z;
 
         // m = x
-        let x = g.val(C::X, C::T) * V.t
-            + g.val(C::X, C::X) * V.x
-            + g.val(C::X, C::Y) * V.y
-            + g.val(C::X, C::Z) * V.z;
+        let x = g.val(C::X, C::T, l) * V.t
+            + g.val(C::X, C::X, l) * V.x
+            + g.val(C::X, C::Y, l) * V.y
+            + g.val(C::X, C::Z, l) * V.z;
 
         // m = y
-        let y = g.val(C::Y, C::T) * V.t
-            + g.val(C::Y, C::X) * V.x
-            + g.val(C::Y, C::Y) * V.y
-            + g.val(C::Y, C::Z) * V.z;
+        let y = g.val(C::Y, C::T, l) * V.t
+            + g.val(C::Y, C::X, l) * V.x
+            + g.val(C::Y, C::Y, l) * V.y
+            + g.val(C::Y, C::Z, l) * V.z;
 
         // m = z
-        let z = g.val(C::Z, C::T) * V.t
-            + g.val(C::Z, C::X) * V.x
-            + g.val(C::Z, C::Y) * V.y
-            + g.val(C::Z, C::Z) * V.z;
+        let z = g.val(C::Z, C::T, l) * V.t
+            + g.val(C::Z, C::X, l) * V.x
+            + g.val(C::Z, C::Y, l) * V.y
+            + g.val(C::Z, C::Z, l) * V.z;
 
         Vec4 { t, x, y, z }
     }
@@ -203,9 +205,19 @@ pub struct MetricTensor {
     /// Matrix representation: A 4x4 matrix of minkowski space. This is in LL config. ie g_{m n}.
     /// We get other configs using our `as_config` method.
     // We use a Mat4 here to take advantage of inverse, and multiplying by a constant.
-    pub matrix_ll: Mat4,
+    matrix_ll: Mat4,
     /// Ie the inverse metric; it's upper config.
     matrix_uu: Mat4,
+}
+
+/// Eg initialization of a metric field
+impl Default for MetricTensor {
+    fn default() -> Self {
+        Self {
+            matrix_ll: Mat4::new_identity(),
+            matrix_uu: Mat4::new_identity(),
+        }
+    }
 }
 
 impl MetricTensor {
@@ -253,7 +265,6 @@ impl MetricTensor {
     fn generate_inverse(&mut self) {
         self.matrix_uu = self.matrix_ll.inverse().unwrap();
     }
-
 
     // // todo :You need some method of getting by named index *while in a different config*; ie you have an immediate
     // // todo need to do that with a UU config now for finding christoffel symbols.
@@ -310,7 +321,8 @@ impl MetricTensor {
                 unimplemented!()
             }
             Tensor2Config::Ll => self.matrix_ll,
-        }.data;
+        }
+        .data;
 
         match μ {
             C::T => match ν {
@@ -356,7 +368,8 @@ impl MetricTensor {
                 unimplemented!()
             }
             Tensor2Config::Ll => self.matrix_ll,
-        }.data;
+        }
+        .data;
 
         &mut match μ {
             C::T => match ν {
