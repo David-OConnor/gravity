@@ -16,13 +16,13 @@ const ETA_MINKOWSKI: Mat4 = Mat4 { data: [
 ]};
 
 #[derive(Clone, Copy)]
-enum Tensor1Config {
+pub enum Tensor1Config {
     U,
     L,
 }
 
 #[derive(Clone, Copy)]
-enum Tensor2Config {
+pub enum Tensor2Config {
     Uu,
     Ul,
     Lu,
@@ -44,7 +44,7 @@ impl Vec4 {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 /// Represents a component of a 4-vector in Minkowski space. Compact syntax sacrifices explicitness
 /// for code readability since it appears in groups.
 pub enum V4Component {
@@ -165,24 +165,25 @@ pub struct StressEnergyTensor {
     /// Matrix representation: A 4x4 matrix of minkowski space. This is in UU config. ie g^{m n}.
     /// We get other configs using our `as_config` method.
     matrix_uu: Mat4,
+    // Dependent on uu.
+    matrix_ll: Mat4,
 }
 
 impl StressEnergyTensor {
-    pub fn as_config(&self, config: Tensor2Config) -> Mat4 {
-        // todo
-        match config {
-            // todo: Unnecessary clone; find another way.
-            Tensor2Config::Uu => self.matrix_uu.clone(),
-            Tensor2Config::Ul => {
-                let a = ETA_MINKOWSKI * self.matrix_uu;
-                unimplemented!()
-            }
-            Tensor2Config::Lu => {
-                unimplemented!()
-            }
-            Tensor2Config::Ll => self.matrix_uu.inverse().unwrap(),
-        }
-    }
+    // pub fn as_config(&self, config: Tensor2Config) -> &Mat4 {
+    //     // todo
+    //     &match config {
+    //         Tensor2Config::Uu => self.matrix_uu,
+    //         Tensor2Config::Ul => {
+    //             // let a = ETA_MINKOWSKI * self.matrix_uu;
+    //             unimplemented!()
+    //         }
+    //         Tensor2Config::Lu => {
+    //             unimplemented!()
+    //         }
+    //         Tensor2Config::Ll => self.matrix_ll,
+    //     }
+    // }
 
     /// Return the matrix rep of the Einstein tensor, as a UU config.
     pub fn get_einstein_tensor(&self) -> Mat4 {
@@ -203,6 +204,8 @@ pub struct MetricTensor {
     /// We get other configs using our `as_config` method.
     // We use a Mat4 here to take advantage of inverse, and multiplying by a constant.
     pub matrix_ll: Mat4,
+    /// Ie the inverse metric; it's upper config.
+    matrix_uu: Mat4,
 }
 
 impl MetricTensor {
@@ -212,41 +215,93 @@ impl MetricTensor {
         // This matrix array layout is column-major, and lower-indexed.
         let mut g = Self {
             matrix_ll: Mat4 { data: [0.; 16] },
+            matrix_uu: Mat4 { data: [0.; 16] },
         };
 
+        let l = Tensor2Config::Ll;
+
         // For g_{m n}, m = t
-        *g.val_mut(C::T, C::T) = e_t.dot(e_t); // n = t
-        *g.val_mut(C::T, C::X) = e_t.dot(e_x); // n = x
-        *g.val_mut(C::T, C::Y) = e_t.dot(e_y); // n = y
-        *g.val_mut(C::T, C::Z) = e_t.dot(e_z); // n = z
+        *g.val_mut(C::T, C::T, l) = e_t.dot(e_t); // n = t
+        *g.val_mut(C::T, C::X, l) = e_t.dot(e_x); // n = x
+        *g.val_mut(C::T, C::Y, l) = e_t.dot(e_y); // n = y
+        *g.val_mut(C::T, C::Z, l) = e_t.dot(e_z); // n = z
 
         // For g_{m n}, m = x
-        *g.val_mut(C::X, C::T) = e_x.dot(e_t); // n = x ( etc for the rest; follow the pattern)
-        *g.val_mut(C::X, C::X) = e_x.dot(e_x);
-        *g.val_mut(C::X, C::Y) = e_x.dot(e_y);
-        *g.val_mut(C::X, C::Z) = e_x.dot(e_z);
+        *g.val_mut(C::X, C::T, l) = e_x.dot(e_t); // n = x ( etc for the rest; follow the pattern)
+        *g.val_mut(C::X, C::X, l) = e_x.dot(e_x);
+        *g.val_mut(C::X, C::Y, l) = e_x.dot(e_y);
+        *g.val_mut(C::X, C::Z, l) = e_x.dot(e_z);
 
         // For g_{m n}, m = y
-        *g.val_mut(C::Y, C::T) = e_y.dot(e_t);
-        *g.val_mut(C::Y, C::X) = e_y.dot(e_x);
-        *g.val_mut(C::Y, C::Y) = e_y.dot(e_y);
-        *g.val_mut(C::Y, C::Z) = e_y.dot(e_z);
+        *g.val_mut(C::Y, C::T, l) = e_y.dot(e_t);
+        *g.val_mut(C::Y, C::X, l) = e_y.dot(e_x);
+        *g.val_mut(C::Y, C::Y, l) = e_y.dot(e_y);
+        *g.val_mut(C::Y, C::Z, l) = e_y.dot(e_z);
 
         // For g_{m n}, m = z
-        *g.val_mut(C::Z, C::T) = e_z.dot(e_t);
-        *g.val_mut(C::Z, C::X) = e_z.dot(e_x);
-        *g.val_mut(C::Z, C::Y) = e_z.dot(e_y);
-        *g.val_mut(C::Z, C::Z) = e_z.dot(e_z);
+        *g.val_mut(C::Z, C::T, l) = e_z.dot(e_t);
+        *g.val_mut(C::Z, C::X, l) = e_z.dot(e_x);
+        *g.val_mut(C::Z, C::Y, l) = e_z.dot(e_y);
+        *g.val_mut(C::Z, C::Z, l) = e_z.dot(e_z);
+
+        g.generate_inverse();
 
         g
     }
 
+    /// Generate the inverse metric (upper-upper config).
+    fn generate_inverse(&mut self) {
+        self.matrix_uu = self.matrix_ll.inverse().unwrap();
+    }
 
-    // todo :You need some method of getting by named index *while in a different config*; ie you have an immediate
-    // todo need to do that with a UU config now for finding christoffel symbols.
-    pub fn as_config(&self, config: Tensor2Config) -> Mat4 {
-        match config {
-            Tensor2Config::Uu => self.matrix_ll.inverse().unwrap(),
+
+    // // todo :You need some method of getting by named index *while in a different config*; ie you have an immediate
+    // // todo need to do that with a UU config now for finding christoffel symbols.
+    // pub fn as_config(&self, config: Tensor2Config) -> &Mat4 {
+    //     &match config {
+    //         Tensor2Config::Uu => self.matrix_uu,
+    //         Tensor2Config::Ul => {
+    //             // let a = ETA_MINKOWSKI * self.matrix_ll;
+    //             unimplemented!()
+    //         }
+    //         Tensor2Config::Lu => {
+    //             unimplemented!()
+    //         }
+    //         Tensor2Config::Ll => self.matrix_ll,
+    //     }
+    // }
+
+    /// Take the inner product of 2 vectors, using this metric; V·V = g_{mn} V^m V^n
+    pub fn inner_product(&self, vec_a: Vec4Minkowski, vec_b: Vec4Minkowski) -> f64 {
+        let a = vec_a.as_upper();
+        let b = vec_b.as_upper();
+
+        let l = Tensor2Config::Ll;
+
+        self.val(C::T, C::T, l) * a.t * b.t
+            + self.val(C::T, C::X, l) * a.t * b.x
+            + self.val(C::T, C::Y, l) * a.t * b.y
+            + self.val(C::T, C::Z, l) * a.t * b.z
+            + self.val(C::X, C::T, l) * a.x * b.t
+            + self.val(C::X, C::X, l) * a.x * b.x
+            + self.val(C::X, C::Y, l) * a.x * b.y
+            + self.val(C::X, C::Z, l) * a.x * b.z
+            + self.val(C::Y, C::T, l) * a.y * b.t
+            + self.val(C::Y, C::X, l) * a.y * b.x
+            + self.val(C::Y, C::Y, l) * a.y * b.y
+            + self.val(C::Y, C::Z, l) * a.y * b.z
+            + self.val(C::Z, C::T, l) * a.z * b.t
+            + self.val(C::Z, C::X, l) * a.z * b.x
+            + self.val(C::Z, C::Y, l) * a.z * b.y
+            + self.val(C::Z, C::Z, l) * a.z * b.z
+    }
+
+    /// Get a specific matrix component. This keeps code that uses this matrix consistent
+    /// with conventions. Assumptions: Column-major array representation of the matrix, and
+    /// the internal matrix is in lower-lower representation.
+    pub fn val(&self, μ: V4Component, ν: V4Component, config: Tensor2Config) -> f64 {
+        let g = &match config {
+            Tensor2Config::Uu => self.matrix_uu,
             Tensor2Config::Ul => {
                 // let a = ETA_MINKOWSKI * self.matrix_ll;
                 unimplemented!()
@@ -254,42 +309,8 @@ impl MetricTensor {
             Tensor2Config::Lu => {
                 unimplemented!()
             }
-            // todo: Unnecessary clone; find another way.
-            Tensor2Config::Ll => self.matrix_ll.clone(),
-        }
-    }
-
-    /// Take the inner product of 2 vectors, using this metric; V·V = g_{mn} V^m V^n
-    pub fn inner_product(&self, vec_a: Vec4Minkowski, vec_b: Vec4Minkowski) -> f64 {
-        // todo: Maybe methods on *this* struct?
-        let a = vec_a.as_upper();
-        let b = vec_b.as_upper();
-
-        self.val(C::T, C::T) * a.t * b.t
-            + self.val(C::T, C::X) * a.t * b.x
-            + self.val(C::T, C::Y) * a.t * b.y
-            + self.val(C::T, C::Z) * a.t * b.z
-            + self.val(C::X, C::T) * a.x * b.t
-            + self.val(C::X, C::X) * a.x * b.x
-            + self.val(C::X, C::Y) * a.x * b.y
-            + self.val(C::X, C::Z) * a.x * b.z
-            + self.val(C::Y, C::T) * a.y * b.t
-            + self.val(C::Y, C::X) * a.y * b.x
-            + self.val(C::Y, C::Y) * a.y * b.y
-            + self.val(C::Y, C::Z) * a.y * b.z
-            + self.val(C::Z, C::T) * a.z * b.t
-            + self.val(C::Z, C::X) * a.z * b.x
-            + self.val(C::Z, C::Y) * a.z * b.y
-            + self.val(C::Z, C::Z) * a.z * b.z
-    }
-
-    /// Get a specific matrix component. This keeps code that uses this matrix consistent
-    /// with conventions. Assumptions: Column-major array representation of the matrix, and
-    /// the internal matrix is in lower-lower representation.
-    pub fn val(&self, μ: V4Component, ν: V4Component) -> f64 {
-        // todo: Order? Is this reversed?
-
-        let g = &self.matrix_ll.data;
+            Tensor2Config::Ll => self.matrix_ll,
+        }.data;
 
         match μ {
             C::T => match ν {
@@ -324,10 +345,19 @@ impl MetricTensor {
 
     /// Similar to `val`, but mutable.
     /// todo: DRY with `.val`
-    pub fn val_mut(&mut self, μ: V4Component, ν: V4Component) -> &mut f64 {
-        let g = &mut self.matrix_ll.data;
+    pub fn val_mut(&mut self, μ: V4Component, ν: V4Component, config: Tensor2Config) -> &mut f64 {
+        let g = &mut match config {
+            Tensor2Config::Uu => self.matrix_uu,
+            Tensor2Config::Ul => {
+                // let a = ETA_MINKOWSKI * self.matrix_ll;
+                unimplemented!()
+            }
+            Tensor2Config::Lu => {
+                unimplemented!()
+            }
+            Tensor2Config::Ll => self.matrix_ll,
+        }.data;
 
-        // todo: Same order caveat as with Val.
         &mut match μ {
             C::T => match ν {
                 C::T => g[0],
