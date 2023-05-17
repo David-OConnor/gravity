@@ -20,6 +20,29 @@ const WINDOW_SIZE_Y: f32 = 1_200.;
 const RENDER_DIST: f32 = 100.;
 const BACKGROUND_COLOR: Color = (0.5, 0.5, 0.5);
 
+fn event_handler(
+    _state: &mut State,
+    _event: DeviceEvent,
+    _scene: &mut Scene,
+    _dt: f32,
+) -> EngineUpdates {
+    // match event {
+    //     DeviceEvent::Key(key) => {}
+    //     _ => (),
+    // }
+    EngineUpdates::default()
+}
+
+/// This runs each frame. Currently, no updates.
+fn render_handler(_state: &mut State, _scene: &mut Scene, _dt: f32) -> EngineUpdates {
+    // EngineUpdates::default()
+
+    EngineUpdates {
+        // compute: true,
+        ..Default::default()
+    }
+}
+
 /// Entry point to our render and event loop.
 pub fn render(state: State) {
     let mut scene = Scene {

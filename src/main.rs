@@ -1,5 +1,6 @@
 #![allow(non_ascii_idents)]
 #![allow(non_snake_case)]
+#![allow(confusable_idents)] // nu and v
 
 //! Modeling a galaxy, with the hope of learning something about Dark matter, or perhaps
 //! physics/chem modelling and rendering skills in general.
@@ -21,15 +22,16 @@ mod Christoffel;
 mod render;
 mod tensors;
 mod ui;
+mod reimann;
 
-use crate::tensors::{Christoffel, MetricTensor, Vec4, Vec4Minkowski};
+use crate::tensors::{MetricTensor, Vec4, Vec4Minkowski};
 
 // Gravitational constant.
 const C: f64 = 1.;
 const C_SQ: f64 = 1.;
 const G: f64 = 1.; // todo: Change A/R.
 
-// pub type Arr3dReal = Vec<Vec<Vec<f64>>>;
+pub type Arr4dReal = Vec<Vec<Vec<Vec<f64>>>>;
 // pub type Arr3d = Vec<Vec<Vec<Cplx>>>;
 // pub type Arr3dVec = Vec<Vec<Vec<Vec3>>>;
 // pub type Arr3dVec4 = Vec<Vec<Vec<Vec4Minkowski>>>;
@@ -125,12 +127,15 @@ pub fn new_data_vec(n: usize) -> Arr4dVec4 {
     let mut x = Vec::new();
     x.resize(n, y);
 
-    x
+    let mut t = Vec::new();
+    t.resize(n, x);
+
+    t
 }
 
 /// Make a new 3D grid of Metric tensors. Used to model the curvature of space.
 /// Defaults to the identity transform, ie flat space.
-pub fn new_data_metric(n: usize) -> Arr3dMetric {
+pub fn new_data_metric(n: usize) -> Arr4dMetric {
     let mut z = Vec::new();
 
     z.resize(n, MetricTensor::default());
@@ -141,7 +146,10 @@ pub fn new_data_metric(n: usize) -> Arr3dMetric {
     let mut x = Vec::new();
     x.resize(n, y);
 
-    x
+        let mut t = Vec::new();
+    t.resize(n, x);
+
+    t
 }
 
 fn main() {

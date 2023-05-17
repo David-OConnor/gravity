@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::tensors::MetricTensor;
 use crate::{
     tensors::{Tensor2Config, V4Component, Vec4Minkowski},
-    Arr3dMetric, C,
+    Arr4dMetric, C,
 };
 
 /// We use this for indexing into metric tensor collections used in derivatives.
@@ -22,9 +22,7 @@ pub struct Christoffel {
     /// There are 40 independent components vice 64, since lower indices are swappable.
     /// We are keeping the full representation for now for simplicity and clarity with matrix
     /// index conventions, but our code takes advantage of the degeneracy; we don't use all indices.
-    /// todo: Switch to 40-comp repr to save memory.
-    components: [f64; 64],
-    // components: [f64; 40],
+    components: [f64; 40],
 }
 
 impl Christoffel {
@@ -68,7 +66,7 @@ impl Christoffel {
     // pub fn from_metric(metrics: &crate::Arr4dMetric, posit: &Vec4Minkowski, p_i: crate::PositIndex) -> Self {
     pub fn from_metric(metrics: &crate::Arr4dMetric, p_i: crate::PositIndex, ds: f64) -> Self {
         let mut result = Self {
-            components: [0.; 64],
+            components: [0.; 40],
         };
 
         // todo: Make sure is aren't at the edges. If so, return etc.
@@ -114,8 +112,8 @@ impl Christoffel {
                 for ν in &comps {
                     // Todo: Is there a more elegant way to do this?
                     let mut degen = false;
-                    for complete in complete_lower_combos {
-                        if (ν, μ) == complete {
+                    for complete in &complete_lower_combos {
+                        if (ν, μ) == *complete {
                             // Notice the swapped indices compared.
                             degen = true;
                             break;
@@ -139,6 +137,7 @@ impl Christoffel {
     /// Same idea as for the metric tensor.
     /// todo boy: This is a bear.
     /// λ is the upper index.
+    /// Note that these indices are arbitrary; they no longer can be composed into a matrix.
     pub fn val(&self, λ: V4Component, μ: V4Component, ν: V4Component) -> f64 {
         let d = &self.components;
 
@@ -152,121 +151,125 @@ impl Christoffel {
                 },
 
                 C::X => match ν {
-                    C::T => d[1], //  Degen with 1
-                    C::X => d[5],
-                    C::Y => d[6],
-                    C::Z => d[7],
+                    C::T => d[1], //  Degen
+                    C::X => d[4],
+                    C::Y => d[5],
+                    C::Z => d[6],
                 },
 
                 C::Y => match ν {
-                    C::T => d[2], //  Degen with 2
-                    C::X => d[6], // Degen with 6
-                    C::Y => d[10],
-                    C::Z => d[11],
+                    C::T => d[2], //  Degen wit
+                    C::X => d[6], // Degen wit
+                    C::Y => d[7],
+                    C::Z => d[8],
                 },
 
                 C::Z => match ν {
-                    C::T => d[3],  // Degen with 3
-                    C::X => d[7],  // Degen with 7
-                    C::Y => d[11], // Degen with 11
-                    C::Z => d[15],
+                    C::T => d[3],  // Degen
+                    C::X => d[7],  // Degen
+                    C::Y => d[8], // Degen
+                    C::Z => d[9],
                 },
             },
             C::X => match μ {
                 C::T => match ν {
-                    C::T => d[16],
-                    C::X => d[17],
-                    C::Y => d[18],
-                    C::Z => d[19],
+                    C::T => d[10],
+                    C::X => d[11],
+                    C::Y => d[12],
+                    C::Z => d[13],
                 },
 
                 C::X => match ν {
-                    C::T => d[17], // Degen
+                    C::T => d[11], // Degen
+                    C::X => d[14],
+                    C::Y => d[15],
+                    C::Z => d[16],
+                },
+
+                C::Y => match ν {
+                    C::T => d[12], // Degen
+                    C::X => d[15], // Degen
+                    C::Y => d[17],
+                    C::Z => d[18],
+                },
+
+                C::Z => match ν {
+                    C::T => d[13], // Degen
+                    C::X => d[16], // Degen
+                    C::Y => d[17], // Degen
+                    C::Z => d[19],
+                },
+            },
+            C::Y => match μ {
+                C::T => match ν {
+                    C::T => d[20],
                     C::X => d[21],
                     C::Y => d[22],
                     C::Z => d[23],
                 },
 
-                C::Y => match ν {
-                    C::T => d[18], // Degen
-                    C::X => d[22], // Degen
-                    C::Y => d[26],
-                    C::Z => d[27],
-                },
-
-                C::Z => match ν {
-                    C::T => d[19], // Degen
-                    C::X => d[23], // Degen
-                    C::Y => d[27], // Degen
-                    C::Z => d[31],
-                },
-            },
-            C::Y => match μ {
-                C::T => match ν {
-                    C::T => d[32],
-                    C::X => d[33],
-                    C::Y => d[34],
-                    C::Z => d[35],
-                },
-
                 C::X => match ν {
-                    C::T => d[33], // Degen
-                    C::X => d[37],
-                    C::Y => d[38],
-                    C::Z => d[39],
+                    C::T => d[21], // Degen
+                    C::X => d[24],
+                    C::Y => d[25],
+                    C::Z => d[26],
                 },
 
                 C::Y => match ν {
-                    C::T => d[34], // Degen
-                    C::X => d[38], // Degen
-                    C::Y => d[42],
-                    C::Z => d[43],
+                    C::T => d[22], // Degen
+                    C::X => d[25], // Degen
+                    C::Y => d[27],
+                    C::Z => d[28],
                 },
 
                 C::Z => match ν {
-                    C::T => d[35], // Degen
-                    C::X => d[39], // Degen
-                    C::Y => d[43], // Degen
-                    C::Z => d[47],
+                    C::T => d[23], // Degen
+                    C::X => d[26], // Degen
+                    C::Y => d[28], // Degen
+                    C::Z => d[29],
                 },
             },
             C::Z => match μ {
                 C::T => match ν {
-                    C::T => d[48],
-                    C::X => d[49],
-                    C::Y => d[50],
-                    C::Z => d[51],
+                    C::T => d[30],
+                    C::X => d[31],
+                    C::Y => d[32],
+                    C::Z => d[33],
                 },
 
                 C::X => match ν {
-                    C::T => d[49], // Degen
-                    C::X => d[53],
-                    C::Y => d[54],
-                    C::Z => d[55],
+                    C::T => d[31], // Degen
+                    C::X => d[34],
+                    C::Y => d[35],
+                    C::Z => d[36],
                 },
 
                 C::Y => match ν {
-                    C::T => d[50], // Degen
-                    C::X => d[54], // Degen
-                    C::Y => d[58],
-                    C::Z => d[59],
+                    C::T => d[32], // Degen
+                    C::X => d[35], // Degen
+                    C::Y => d[37],
+                    C::Z => d[38],
                 },
 
                 C::Z => match ν {
-                    C::T => d[51], // Degen
-                    C::X => d[55], // Degen
-                    C::Y => d[59], // Degen
-                    C::Z => d[63],
+                    C::T => d[33], // Degen
+                    C::X => d[36], // Degen
+                    C::Y => d[38], // Degen
+                    C::Z => d[39],
                 },
             },
         }
     }
 
     /// DRY!
-    pub fn val_mut(&self, λ: V4Component, μ: V4Component, ν: V4Component) -> &mut f64 {
-        let d = &self.components;
+    pub fn val_mut(&mut self, λ: V4Component, μ: V4Component, ν: V4Component) -> &mut f64 {
+        // todo: Seeing if this simplifier works. If it does, apply to metric and other tensors a/r
+        // &mut self.val(λ, μ, ν)
 
-        &mut match λ {
+        // todo: Massive DRY
+        let d = &mut self.components;
+
+        match λ {
             C::T => match μ {
                 C::T => match ν {
                     C::T => d[0],
@@ -276,111 +279,111 @@ impl Christoffel {
                 },
 
                 C::X => match ν {
-                    C::T => d[1], //  Degen with 1
-                    C::X => d[5],
-                    C::Y => d[6],
-                    C::Z => d[7],
+                    C::T => d[1], //  Degen
+                    C::X => d[4],
+                    C::Y => d[5],
+                    C::Z => d[6],
                 },
 
                 C::Y => match ν {
-                    C::T => d[2], //  Degen with 2
-                    C::X => d[6], // Degen with 6
-                    C::Y => d[10],
-                    C::Z => d[11],
+                    C::T => d[2], //  Degen wit
+                    C::X => d[6], // Degen wit
+                    C::Y => d[7],
+                    C::Z => d[8],
                 },
 
                 C::Z => match ν {
-                    C::T => d[3],  // Degen with 3
-                    C::X => d[7],  // Degen with 7
-                    C::Y => d[11], // Degen with 11
-                    C::Z => d[15],
+                    C::T => d[3],  // Degen
+                    C::X => d[7],  // Degen
+                    C::Y => d[8], // Degen
+                    C::Z => d[9],
                 },
             },
             C::X => match μ {
                 C::T => match ν {
-                    C::T => d[16],
-                    C::X => d[17],
-                    C::Y => d[18],
-                    C::Z => d[19],
+                    C::T => d[10],
+                    C::X => d[11],
+                    C::Y => d[12],
+                    C::Z => d[13],
                 },
 
                 C::X => match ν {
-                    C::T => d[17], // Degen
+                    C::T => d[11], // Degen
+                    C::X => d[14],
+                    C::Y => d[15],
+                    C::Z => d[16],
+                },
+
+                C::Y => match ν {
+                    C::T => d[12], // Degen
+                    C::X => d[15], // Degen
+                    C::Y => d[17],
+                    C::Z => d[18],
+                },
+
+                C::Z => match ν {
+                    C::T => d[13], // Degen
+                    C::X => d[16], // Degen
+                    C::Y => d[17], // Degen
+                    C::Z => d[19],
+                },
+            },
+            C::Y => match μ {
+                C::T => match ν {
+                    C::T => d[20],
                     C::X => d[21],
                     C::Y => d[22],
                     C::Z => d[23],
                 },
 
-                C::Y => match ν {
-                    C::T => d[18], // Degen
-                    C::X => d[22], // Degen
-                    C::Y => d[26],
-                    C::Z => d[27],
-                },
-
-                C::Z => match ν {
-                    C::T => d[19], // Degen
-                    C::X => d[23], // Degen
-                    C::Y => d[27], // Degen
-                    C::Z => d[31],
-                },
-            },
-            C::Y => match μ {
-                C::T => match ν {
-                    C::T => d[32],
-                    C::X => d[33],
-                    C::Y => d[34],
-                    C::Z => d[35],
-                },
-
                 C::X => match ν {
-                    C::T => d[33], // Degen
-                    C::X => d[37],
-                    C::Y => d[38],
-                    C::Z => d[39],
+                    C::T => d[21], // Degen
+                    C::X => d[24],
+                    C::Y => d[25],
+                    C::Z => d[26],
                 },
 
                 C::Y => match ν {
-                    C::T => d[34], // Degen
-                    C::X => d[38], // Degen
-                    C::Y => d[42],
-                    C::Z => d[43],
+                    C::T => d[22], // Degen
+                    C::X => d[25], // Degen
+                    C::Y => d[27],
+                    C::Z => d[28],
                 },
 
                 C::Z => match ν {
-                    C::T => d[35], // Degen
-                    C::X => d[39], // Degen
-                    C::Y => d[43], // Degen
-                    C::Z => d[47],
+                    C::T => d[23], // Degen
+                    C::X => d[26], // Degen
+                    C::Y => d[28], // Degen
+                    C::Z => d[29],
                 },
             },
             C::Z => match μ {
                 C::T => match ν {
-                    C::T => d[48],
-                    C::X => d[49],
-                    C::Y => d[50],
-                    C::Z => d[51],
+                    C::T => d[30],
+                    C::X => d[31],
+                    C::Y => d[32],
+                    C::Z => d[33],
                 },
 
                 C::X => match ν {
-                    C::T => d[49], // Degen
-                    C::X => d[53],
-                    C::Y => d[54],
-                    C::Z => d[55],
+                    C::T => d[31], // Degen
+                    C::X => d[34],
+                    C::Y => d[35],
+                    C::Z => d[36],
                 },
 
                 C::Y => match ν {
-                    C::T => d[50], // Degen
-                    C::X => d[54], // Degen
-                    C::Y => d[58],
-                    C::Z => d[59],
+                    C::T => d[32], // Degen
+                    C::X => d[35], // Degen
+                    C::Y => d[37],
+                    C::Z => d[38],
                 },
 
                 C::Z => match ν {
-                    C::T => d[51], // Degen
-                    C::X => d[55], // Degen
-                    C::Y => d[59], // Degen
-                    C::Z => d[63],
+                    C::T => d[33], // Degen
+                    C::X => d[36], // Degen
+                    C::Y => d[38], // Degen
+                    C::Z => d[39],
                 },
             },
         }

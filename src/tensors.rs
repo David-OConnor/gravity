@@ -189,7 +189,7 @@ impl StressEnergyTensor {
 
     /// Return the matrix rep of the Einstein tensor, as a UU config.
     pub fn get_einstein_tensor(&self) -> Mat4 {
-        self.matrix_uu * 4. * TAU * G
+        self.matrix_uu.clone() * 4. * TAU * G
     }
 }
 
@@ -312,7 +312,7 @@ impl MetricTensor {
     /// the internal matrix is in lower-lower representation.
     pub fn val(&self, μ: V4Component, ν: V4Component, config: Tensor2Config) -> f64 {
         let g = &match config {
-            Tensor2Config::Uu => self.matrix_uu,
+            Tensor2Config::Uu => &self.matrix_uu,
             Tensor2Config::Ul => {
                 // let a = ETA_MINKOWSKI * self.matrix_ll;
                 unimplemented!()
@@ -320,7 +320,7 @@ impl MetricTensor {
             Tensor2Config::Lu => {
                 unimplemented!()
             }
-            Tensor2Config::Ll => self.matrix_ll,
+            Tensor2Config::Ll => &self.matrix_ll,
         }
         .data;
 
@@ -359,7 +359,7 @@ impl MetricTensor {
     /// todo: DRY with `.val`
     pub fn val_mut(&mut self, μ: V4Component, ν: V4Component, config: Tensor2Config) -> &mut f64 {
         let g = &mut match config {
-            Tensor2Config::Uu => self.matrix_uu,
+            Tensor2Config::Uu => &mut self.matrix_uu.data,
             Tensor2Config::Ul => {
                 // let a = ETA_MINKOWSKI * self.matrix_ll;
                 unimplemented!()
@@ -367,9 +367,8 @@ impl MetricTensor {
             Tensor2Config::Lu => {
                 unimplemented!()
             }
-            Tensor2Config::Ll => self.matrix_ll,
-        }
-        .data;
+            Tensor2Config::Ll => &mut self.matrix_ll.data,
+        };
 
         &mut match μ {
             C::T => match ν {
@@ -401,41 +400,6 @@ impl MetricTensor {
             },
         }
     }
-}
-
-// /// todo: As method of Christoffel instead?
-// pub fn to_christoffel(&self) -> Christoffel {
-//     let term1 = self(a).diff(b, c);
-//     let term2 = self(b).diff(a, c);
-//     let term3 = self(c).diff(a, b);
-//
-//     0.5 * self.matrix * (term1 + term2 - term3)
-// }
-
-/// https://github.com/wojciechczaja/GraviPy/blob/master/gravipy/tensorial.py
-pub struct ReimannTensor {
-    pub coords: [f64; 1],
-    pub con: i8,
-    pub components: [f64; 1],
-    pub index_values: [i8; 1],
-}
-
-impl ReimannTensor {}
-
-/// https://github.com/wojciechczaja/GraviPy/blob/master/gravipy/tensorial.py
-pub struct RicciTensor {
-    pub coords: [f64; 1],
-    pub con: i8,
-    pub components: [f64; 20],
-    pub index_values: [i8; 1],
-}
-
-impl RicciTensor {
-    // pub fn new() -> Self {}
-    //
-    // pub fn compute_covaraiant_component(&self) -> f64 {}
-    //
-    // pub fn scaler(&self) -> f64 {}
 }
 
 pub struct EinsteinTensor {
