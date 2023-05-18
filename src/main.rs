@@ -38,6 +38,7 @@ pub type Arr4dReal = Vec<Vec<Vec<Vec<f64>>>>;
 // pub type Arr3dMetric = Vec<Vec<Vec<MetricTensor>>>;
 pub type Arr4dVec4 = Vec<Vec<Vec<Vec<Vec4Minkowski>>>>;
 pub type Arr4dMetric = Vec<Vec<Vec<Vec<MetricTensor>>>>;
+pub type Arr4dChristoffel = Vec<Vec<Vec<Vec<Christoffel>>>>;
 
 // todo: Consider the form of this.
 fn gamma(v: f64) -> f64 {
@@ -48,6 +49,7 @@ fn gamma(v: f64) -> f64 {
 pub type C = tensors::V4Component;
 
 /// Used for indexing into spacetime grids, eg for metric tensors.
+#[derive(Clone, Copy)]
 pub struct PositIndex {
     pub t: usize,
     pub x: usize,
@@ -150,6 +152,13 @@ pub fn new_data_metric(n: usize) -> Arr4dMetric {
     t.resize(n, x);
 
     t
+}
+
+pub fn swarzchild_val(r_s: f64, r: f64, dr: f64, dθ: f64, dφ: f64) -> f64 {
+    let r_const = 1. - r_s / r;
+    let g_omega = dθ.powi(2) + ((dφ.powi(2)).sin()).powi(2);
+
+    -r_const * C_SQ * dt.powi(2) + 1. / r_const * dr.powi(2) + r.powi(2) * g_omega
 }
 
 fn main() {

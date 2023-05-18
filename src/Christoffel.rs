@@ -62,9 +62,10 @@ impl Christoffel {
 
     /// Compute from the metric tensor and its numerical derivatives.
     /// Γ^λ _{μ ν} = g^{λ d} ( d_μ g_{ν d} + d_ν g_{b d} - d_d g_{μ ν})
-    /// ds is the diff in (what? Spacetime interval? Proper time?) between points
+    /// ds is the diff in (what? Spacetime interval? Proper time?) between points. I suppose
+    /// it's just the spacing of the grid.
     // pub fn from_metric(metrics: &crate::Arr4dMetric, posit: &Vec4Minkowski, p_i: crate::PositIndex) -> Self {
-    pub fn from_metric(metrics: &crate::Arr4dMetric, p_i: crate::PositIndex, ds: f64) -> Self {
+    pub fn from_metric(metrics: &Arr4dMetric, p_i: crate::PositIndex, ds: f64) -> Self {
         let mut result = Self {
             components: [0.; 40],
         };
