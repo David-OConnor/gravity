@@ -261,6 +261,27 @@ impl MetricTensor {
         g
     }
 
+    /// Create a new metric tensor given Scharzchild gemoetry, ie a given distance from a
+    /// given black hole (or spherical object in general?) with Scharzchild radius r_s.
+    pub fn new_schwarzchild(r_s: f64, r: f64, θ: f64) -> Self {
+        let mut result = Self {
+            matrix_ll: Mat4 { data: [0.; 16] },
+            matrix_uu: Mat4 { data: [0.; 16] },
+        };
+
+        let a = 1. - r_s / r;
+        let r_sq = r.powi(2);
+
+        result.matrix_ll[0] = -a;
+        result.matrix_ll[5] = 1. / a;
+        result.matrix_ll[10] = r_sq;
+        result.matrix_ll[15] = r_sq * (θ.sin()).powi(2);
+
+        result.generate_inverse();
+
+        result
+    }
+
     /// Generate the inverse metric (upper-upper config).
     fn generate_inverse(&mut self) {
         self.matrix_uu = self.matrix_ll.inverse().unwrap();

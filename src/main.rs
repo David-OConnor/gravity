@@ -23,6 +23,7 @@ mod render;
 mod tensors;
 mod ui;
 mod reimann;
+mod util;
 
 use crate::tensors::{MetricTensor, Vec4, Vec4Minkowski};
 
@@ -63,9 +64,16 @@ struct Particle {
 }
 
 pub struct State {
-    particles: Vec<Particle>,
-    field_grav: Arr4dReal,
-    field_metric: Arr4dMetric,
+    // A single swarzchild point
+    pub schwarzchild_coords: Vec3, // interesting how this is a 3-vec
+    pub schwarzchild_rad: f64,
+    pub particles: Vec<Particle>,
+    // pub field_grav: Arr4dReal,
+    pub field_metric: Arr4dMetric,
+    pub field_christofel: Arr4dChristoffel,
+    pub grid_posits: Arr4dVec,
+    pub grid_n: usize,
+
 }
 
 /// The path a particle takes through spacetime. Can be a geodesic.
@@ -154,17 +162,94 @@ pub fn new_data_metric(n: usize) -> Arr4dMetric {
     t
 }
 
-pub fn swarzchild_val(r_s: f64, r: f64, dr: f64, dθ: f64, dφ: f64) -> f64 {
+pub fn new_data_christoffel(n: usize) -> Arr4dChristoffel {
+    let mut z = Vec::new();
+
+    z.resize(n, Christoffel::default());
+
+    let mut y = Vec::new();
+    y.resize(n, z);
+
+    let mut x = Vec::new();
+    x.resize(n, y);
+
+        let mut t = Vec::new();
+    t.resize(n, x);
+
+    t
+}
+
+/// Calcaulte teh scharzchild spacetime interal.
+pub fn swarzchild_interval(r_s: f64, r: f64, dr: f64, dθ: f64, dφ: f64) -> f64 {
     let r_const = 1. - r_s / r;
     let g_omega = dθ.powi(2) + ((dφ.powi(2)).sin()).powi(2);
 
     -r_const * C_SQ * dt.powi(2) + 1. / r_const * dr.powi(2) + r.powi(2) * g_omega
 }
 
-fn main() {
-    // let state = State {
-    //     particles: Vec::new(),
-    // };
+/// Update our grid positions. Run this when we change grid bounds or spacing.
+pub fn update_grid_posits(
+    grid_posits: &mut Arr3dVec,
+    grid_min: f64,
+    grid_max: f64,
+    n: usize,
+) {
+    let grid_lin = util::linspace((grid_min, grid_max), n);
 
-    // render::render(state);
+    // Set up a grid with values that increase in distance the farther we are from the center.
+    let mut grid_1d = vec![0.; n];
+
+
+    for (i, x) in grid_lin.iter().enumerate() {
+        for (j, y) in grid_lin.iter().enumerate() {
+            for (k, z) in grid_lin.iter().enumerate() {
+                grid_posits[i][j][k] = Vec3::new(*x, *y, *z);
+            }
+        }
+    }
+}
+
+fn main() {
+    let schwarzchild_coords = Vec3::new_zero();
+    let schwarzchild_rad = 2.;
+
+    let grid_n = 30;
+
+    let field_metric = new_data_metric(grid_n);
+    let field_christoffel = new_data_christoffel(grid_n);
+
+    let mut grid_posits = new_data_vec(grid_n);
+    let grid_max = 10.;
+    let grid_min = -grid_max;
+    update_grid_posits(&mut grid_posits, grid_min, grid_max, grid_n);
+
+    for i in 0..grid_n {
+        for j in 0..grid_n {
+            for k in 0..grid_n {
+                for l in 0..grid_n {
+                    let posit_sample = grid_posits[i][j][k][l];
+
+                    let r = -(C_SQ * posit_sample.t.powi(2)) + posit_sample.x.powi(2) + posit_sample.y.powi(2) + posit_sample.z.powi(2);
+                    let θ = 1.; // todo
+
+                    field_metric[i][j][k][l] = MetricTensor::new_schwarzchild(
+                        schwarzchild_rad, r, θ
+                    );
+                }
+            }
+        }
+    }
+
+
+    let state = State {
+        schwarzchild_coords,
+        schwarzchild_rad,
+        particles: Vec::new(),
+        field_metric,
+        field_christofel,
+        grid_posits,
+        grid_n,
+    };
+
+    render::render(state);
 }
