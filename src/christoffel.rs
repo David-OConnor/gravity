@@ -159,8 +159,8 @@ impl Christoffel {
                 },
 
                 C::Y => match ν {
-                    C::T => d[2], //  Degen wit
-                    C::X => d[6], // Degen wit
+                    C::T => d[2], // Degen
+                    C::X => d[6], // Degen
                     C::Y => d[7],
                     C::Z => d[8],
                 },

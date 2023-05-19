@@ -5,7 +5,7 @@ use std::f64::consts::TAU;
 
 use lin_alg2::f64::Mat4;
 
-use crate::{C, G};
+use crate::{C, G, Arr4dMetric, C_SQ};
 
 #[rustfmt::skip]
 const ETA_MINKOWSKI: Mat4 = Mat4 { data: [
@@ -64,6 +64,10 @@ pub struct Vec4Minkowski {
 }
 
 impl Vec4Minkowski {
+    pub fn new(t: f64, x: f64, y: f64, z: f64) -> Self {
+        Self { value_upper: Vec4 { t, x, y, z } }
+    }
+
     /// Get the vector's contravariant (upper-index) numerical form.
     pub fn as_upper(&self) -> Vec4 {
         self.value_upper
@@ -140,6 +144,10 @@ impl Vec4Minkowski {
             dx.t / dx_p.z * A.t + dx.x / dx_p.z * A.x + dx.y / dx_p.z * A.y + dx.z / dx_p.z * A.z;
 
         Vec4 { t, x, y, z }
+    }
+
+    pub fn mag_sq(&self) -> f64 {
+        -(crate::C_SQ * self.t.powi(2)) + self.x.powi(2) + self.y.powi(2) + self.z.powi(2)
     }
 
     // todo
@@ -263,7 +271,9 @@ impl MetricTensor {
 
     /// Create a new metric tensor given Scharzchild gemoetry, ie a given distance from a
     /// given black hole (or spherical object in general?) with Scharzchild radius r_s.
-    pub fn new_schwarzchild(r_s: f64, r: f64, θ: f64) -> Self {
+    pub fn new_schwarzchild(M: f64, r: f64, θ: f64) -> Self {
+        let r_s = 2. * M * G / C_SQ;
+
         let mut result = Self {
             matrix_ll: Mat4 { data: [0.; 16] },
             matrix_uu: Mat4 { data: [0.; 16] },
@@ -419,6 +429,41 @@ impl MetricTensor {
                 C::Y => g[14],
                 C::Z => g[15],
             },
+        }
+    }
+}
+
+/// Group that includes the metric at a point, and at points surrounding it, an infinetesimal difference
+/// in both directions along each spacial axis.
+/// This is useful for when we have a Metric tensor we can find analytically; allows for accurate
+/// derivatives.
+#[derive(Clone)]
+pub struct MetricWDiffs {
+    pub on_pt: Arr4dMetric,
+    pub t_prev: Arr4dMetric,
+    pub t_next: Arr4dMetric,
+    pub x_prev: Arr4dMetric,
+    pub x_next: Arr4dMetric,
+    pub y_prev: Arr4dMetric,
+    pub y_next: Arr4dMetric,
+    pub z_prev: Arr4dMetric,
+    pub z_next: Arr4dMetric,
+}
+
+impl MetricWDiffs {
+    pub fn new(grid_n: usize) -> Self {
+        let data = crate::new_data_metric(grid_n);
+
+        Self{
+            on_pt: data.clone(),
+            t_prev: data.clone(),
+            t_next: data.clone(),
+            x_prev: data.clone(),
+            x_next: data.clone(),
+            y_prev: data.clone(),
+            y_next: data.clone(),
+            z_prev: data.clone(),
+            z_next: data.clone(),
         }
     }
 }

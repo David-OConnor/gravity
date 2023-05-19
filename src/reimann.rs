@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    tensors::{MetricTensor, V4Component,  Tensor2Config}, C, Arr4dMetric, Arr4dChristoffel, Christoffel::Christoffel
+    tensors::{MetricTensor, V4Component,  Tensor2Config}, C, Arr4dMetric, Arr4dChristoffel, christoffel::Christoffel
 };
 
 
