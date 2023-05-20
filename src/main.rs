@@ -19,15 +19,16 @@ use lin_alg2::f64::{Mat4, Vec3, Vec4 as Vec4Linalg};
 use std::f64::consts::TAU;
 
 mod christoffel;
+mod metric;
+mod reimann;
 mod render;
 mod tensors;
 mod ui;
-mod reimann;
 mod util;
 
 use crate::{
-    tensors::{MetricTensor, Vec4, Vec4Minkowski},
     christoffel::Christoffel,
+    tensors::{MetricTensor, Vec4, Vec4Minkowski},
 };
 
 // Gravitational constant.
@@ -51,9 +52,6 @@ pub type Arr4dChristoffel = Vec<Vec<Vec<Vec<Christoffel>>>>;
 fn gamma(v: f64) -> f64 {
     1. / (1. - v.powi(2) / C_SQ).sqrt()
 }
-
-// Our equations make heavy use of this; keep things terse.
-pub type C = tensors::V4Component;
 
 /// Used for indexing into spacetime grids, eg for metric tensors.
 #[derive(Clone, Copy)]
@@ -79,47 +77,6 @@ pub struct State {
     pub field_christoffel: Arr4dChristoffel,
     pub grid_posits: Arr4dVec,
     pub grid_n: usize,
-
-}
-
-/// The path a particle takes through spacetime. Can be a geodesic.
-pub struct Worldline {
-    /// A list of events, with constant proper-time spacing.
-    pub events: Vec<Vec4Minkowski>,
-    /// Defines the spacing between events. A smaller spacing is more precise.
-    /// todo: Maybe this isn't general, ie doesn't apply if mass is 0, like for photons?
-    /// todo In that case, you need something else. (Proper time is 0 along a photon's worldline)
-    /// todo: Is this unit meters, seconds, or something else?
-    pub dτ: f64,
-}
-
-impl Default for Worldline {
-    fn default() -> Self {
-        Self {
-            events: Vec::new(),
-            dτ: 1.,
-        }
-    }
-}
-
-impl Worldline {
-    /// τ_AB = \int (0, 1) sqrt(-g_μv(x^alpha(\sigma)) dx^u/dsigma dx^v / dsigma) dsigma
-    pub fn calc_proper_time(&self) -> f64 {
-        0.
-    }
-
-    // /// Find a geodesic:
-    // /// d^2 x^μ / dλ^2 + Γ^μ_ρσ dx^ρ /dλ dx^σ /dλ = 0
-    // pub fn find_geodesic(
-    //     grid_posits: &Arr3dVec4Minkowski,
-    //     metrics: &Arr3dMetric,
-    //     posit: &Vec4Minkowski,
-    // ) -> Self {
-    //     // todo:
-    //     let Γ = Christoffel::from_metric(metrics, posit);
-    //     // This is a differential equation; solving it may not be a simple fn...
-    //
-    // }
 }
 
 /// Make a new 3D grid of position, time 4-vecs in Minknowski space
@@ -128,12 +85,7 @@ pub fn new_data_vec(n: usize) -> Arr4dVec4 {
     z.resize(
         n,
         Vec4Minkowski {
-            value_upper: Vec4 {
-                t: 1.,
-                x: 0.,
-                y: 0.,
-                z: 0.,
-            },
+            components_u: [1., 0., 0., 0.],
         },
     );
 
@@ -194,17 +146,11 @@ pub fn swarzchild_interval(r_s: f64, r: f64, dr: f64, dθ: f64, dφ: f64) -> f64
 }
 
 /// Update our grid positions. Run this when we change grid bounds or spacing.
-pub fn update_grid_posits(
-    grid_posits: &mut Arr3dVec,
-    grid_min: f64,
-    grid_max: f64,
-    n: usize,
-) {
+pub fn update_grid_posits(grid_posits: &mut Arr3dVec, grid_min: f64, grid_max: f64, n: usize) {
     let grid_lin = util::linspace((grid_min, grid_max), n);
 
     // Set up a grid with values that increase in distance the farther we are from the center.
     let mut grid_1d = vec![0.; n];
-
 
     for (i, x) in grid_lin.iter().enumerate() {
         for (j, y) in grid_lin.iter().enumerate() {
@@ -255,67 +201,95 @@ fn main() {
                 for l in 0..grid_n {
                     let posit = grid_posits[i][j][k][l];
 
-                    let posit_t_prev = Vec4Minkowski::new(posit.t - H, posit_sample.x, posit_sample.y, posit_sample.z);
-                    let posit_t_next = Vec4Minkowski::new(posit.t + H, posit_sample.x, posit_sample.y, posit_sample.z);
-
-                    let posit_x_prev = Vec4Minkowski::new(posit.t, posit_sample.x - H, posit_sample.y, posit_sample.z);
-                    let posit_x_next = Vec4Minkowski::new(posit.t, posit_sample.x + H, posit_sample.y, posit_sample.z);
-
-                    let posit_y_prev = Vec4Minkowski::new(posit.t, posit_sample.x, posit_sample.y - H, posit_sample.z);
-                    let posit_y_next = Vec4Minkowski::new(posit.t, posit_sample.x, posit_sample.y + H, posit_sample.z);
-
-                    let posit_z_prev = Vec4Minkowski::new(posit.t, posit_sample.x, posit_sample.y, posit_sample.z - H);
-                    let posit_z_next = Vec4Minkowski::new(posit.t, posit_sample.x, posit_sample.y, posit_sample.z + H);
-
-
-                    let (r_on_pt, θ_on_pt ) = find_r_θ(posit, schwarzchild_coords);
-
-                    let (r_t_prev, θ_t_prev ) = find_r_θ(posit_t_prev, schwarzchild_coords);
-                    let (r_t_next, θ_t_next ) = find_r_θ(posit_t_next, schwarzchild_coords);
-
-                    let (r_x_prev, θ_x_prev ) = find_r_θ(posit_x_prev, schwarzchild_coords);
-                    let (r_x_next, θ_x_next ) = find_r_θ(posit_x_next, schwarzchild_coords);
-
-                    let (r_y_prev, θ_y_prev ) = find_r_θ(posit_y_prev, schwarzchild_coords);
-                    let (r_y_next, θ_y_next ) = find_r_θ(posit_y_next, schwarzchild_coords);
-
-                    let (r_z_prev, θ_z_prev ) = find_r_θ(posit_z_prev, schwarzchild_coords);
-                    let (r_z_next, θ_z_next ) = find_r_θ(posit_z_next, schwarzchild_coords);
-
-
-                    field_metric.on_pt[i][j][k][l] = MetricTensor::new_schwarzchild(
-                        schwarzchild_rad, r_on_pt, θ_on_pt
+                    let posit_t_prev = Vec4Minkowski::new(
+                        posit.t - H,
+                        posit_sample.x,
+                        posit_sample.y,
+                        posit_sample.z,
+                    );
+                    let posit_t_next = Vec4Minkowski::new(
+                        posit.t + H,
+                        posit_sample.x,
+                        posit_sample.y,
+                        posit_sample.z,
                     );
 
-                    field_metric.t_prev[i][j][k][l] = MetricTensor::new_schwarzchild(
-                        schwarzchild_rad, r_t_prev, θ_t_prev
+                    let posit_x_prev = Vec4Minkowski::new(
+                        posit.t,
+                        posit_sample.x - H,
+                        posit_sample.y,
+                        posit_sample.z,
                     );
-                    field_metric.t_next[i][j][k][l] = MetricTensor::new_schwarzchild(
-                        schwarzchild_rad, r_t_next, θ_t_next
+                    let posit_x_next = Vec4Minkowski::new(
+                        posit.t,
+                        posit_sample.x + H,
+                        posit_sample.y,
+                        posit_sample.z,
                     );
-                    field_metric.x_prev[i][j][k][l] = MetricTensor::new_schwarzchild(
-                        schwarzchild_rad, r_x_prev, θ_x_prev
+
+                    let posit_y_prev = Vec4Minkowski::new(
+                        posit.t,
+                        posit_sample.x,
+                        posit_sample.y - H,
+                        posit_sample.z,
                     );
-                    field_metric.x_next[i][j][k][l] = MetricTensor::new_schwarzchild(
-                        schwarzchild_rad, r_x_next, θ_x_next
+                    let posit_y_next = Vec4Minkowski::new(
+                        posit.t,
+                        posit_sample.x,
+                        posit_sample.y + H,
+                        posit_sample.z,
                     );
-                    field_metric.y_prev[i][j][k][l] = MetricTensor::new_schwarzchild(
-                        schwarzchild_rad, r_y_prev, θ_y_prev
+
+                    let posit_z_prev = Vec4Minkowski::new(
+                        posit.t,
+                        posit_sample.x,
+                        posit_sample.y,
+                        posit_sample.z - H,
                     );
-                    field_metric.y_next[i][j][k][l] = MetricTensor::new_schwarzchild(
-                        schwarzchild_rad, r_y_next, θ_y_next
+                    let posit_z_next = Vec4Minkowski::new(
+                        posit.t,
+                        posit_sample.x,
+                        posit_sample.y,
+                        posit_sample.z + H,
                     );
-                    field_metric.z_prev[i][j][k][l] = MetricTensor::new_schwarzchild(
-                        schwarzchild_rad, r_z_prev, θ_z_prev
-                    );
-                    field_metric.z_next[i][j][k][l] = MetricTensor::new_schwarzchild(
-                        schwarzchild_rad, r_z_next, θ_z_next
-                    );
+
+                    let (r_on_pt, θ_on_pt) = find_r_θ(posit, schwarzchild_coords);
+
+                    let (r_t_prev, θ_t_prev) = find_r_θ(posit_t_prev, schwarzchild_coords);
+                    let (r_t_next, θ_t_next) = find_r_θ(posit_t_next, schwarzchild_coords);
+
+                    let (r_x_prev, θ_x_prev) = find_r_θ(posit_x_prev, schwarzchild_coords);
+                    let (r_x_next, θ_x_next) = find_r_θ(posit_x_next, schwarzchild_coords);
+
+                    let (r_y_prev, θ_y_prev) = find_r_θ(posit_y_prev, schwarzchild_coords);
+                    let (r_y_next, θ_y_next) = find_r_θ(posit_y_next, schwarzchild_coords);
+
+                    let (r_z_prev, θ_z_prev) = find_r_θ(posit_z_prev, schwarzchild_coords);
+                    let (r_z_next, θ_z_next) = find_r_θ(posit_z_next, schwarzchild_coords);
+
+                    field_metric.on_pt[i][j][k][l] =
+                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_on_pt, θ_on_pt);
+
+                    field_metric.t_prev[i][j][k][l] =
+                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_t_prev, θ_t_prev);
+                    field_metric.t_next[i][j][k][l] =
+                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_t_next, θ_t_next);
+                    field_metric.x_prev[i][j][k][l] =
+                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_x_prev, θ_x_prev);
+                    field_metric.x_next[i][j][k][l] =
+                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_x_next, θ_x_next);
+                    field_metric.y_prev[i][j][k][l] =
+                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_y_prev, θ_y_prev);
+                    field_metric.y_next[i][j][k][l] =
+                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_y_next, θ_y_next);
+                    field_metric.z_prev[i][j][k][l] =
+                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_z_prev, θ_z_prev);
+                    field_metric.z_next[i][j][k][l] =
+                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_z_next, θ_z_next);
                 }
             }
         }
     }
-
 
     // // Second iteration, since we need the metric's neighbors.
     // for i in 0..grid_n {
@@ -329,7 +303,6 @@ fn main() {
     //         }
     //     }
     // }
-
 
     let state = State {
         schwarzchild_coords,

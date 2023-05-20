@@ -2,10 +2,12 @@
 
 use std::collections::HashMap;
 
+use crate::tensors::C;
 use crate::{
-    tensors::{MetricTensor, V4Component,  Tensor2Config}, C, Arr4dMetric, Arr4dChristoffel, christoffel::Christoffel
+    christoffel::Christoffel,
+    tensors::{MetricTensor, Tensor2Config, V4Component, COMPS},
+    Arr4dChristoffel, Arr4dMetric, C,
 };
-
 
 /// Reimann tensor. ρ
 pub struct Riemann {
@@ -32,7 +34,7 @@ impl Riemann {
 
         let factor = 1. / (2. * ds);
 
-        for λ in &[C::T, C::X, C::Y, C::Z] {
+        for λ in &COMPS {
             let part_1 = (Γ_diffs.get(&(μ, PrevNext::N)).unwrap().val(ρ, *ν, *σ)
                 - Γ_diffs.get(&(μ, PrevNext::P)).unwrap().val(ρ, *ν, *σ))
                 * factor;
@@ -41,15 +43,14 @@ impl Riemann {
                 - Γ_diffs.get(&(ν, PrevNext::P)).unwrap().val(ρ, *μ, *σ))
                 * factor;
 
-                let part_3 = Γ.val(ρ, μ, λ) * Γ.val(λ, ν, σ) * factor;
-                let part_4 = Γ.val(ρ, ν, λ) * Γ.val(λ, μ, σ) * factor;
+            let part_3 = Γ.val(ρ, μ, λ) * Γ.val(λ, ν, σ) * factor;
+            let part_4 = Γ.val(ρ, ν, λ) * Γ.val(λ, μ, σ) * factor;
 
             result += part_1 - part_2 + part_3 - part_4;
         }
 
         result
     }
-
 
     ///R^ρ_σμν = d_μ Γ^ρ_νσ - d_ν Γ^ρ_μσ + Γ^ρ_μλ Γ^λ_νσ - Γ^ρ_νλ Γ^λ_μσ
     /// This assumes we've pre-calculated Christoffels from the metric.
@@ -86,7 +87,6 @@ impl Riemann {
             for σ in &comps {
                 for μ in &comps {
                     for ν in &comps {
-
                         let mut degen = false;
                         // for complete in &complete_lower_combos {
                         //     if (ν, μ) == *complete {
@@ -118,7 +118,7 @@ impl Riemann {
 
     /// ρ is the upper index.
     /// Note that these indices are arbitrary; they no longer can be composed into a matrix.
-    pub fn val(&self, ρ: V4Component, σ: V4Component, μ: V4Component, ν: V4Component, ) -> f64 {
+    pub fn val(&self, ρ: V4Component, σ: V4Component, μ: V4Component, ν: V4Component) -> f64 {
         let d = &self.components;
 
         match λ {
@@ -129,12 +129,10 @@ impl Riemann {
                     C::Y => d[2],
                     C::Z => d[3],
                 },
-            }
+            },
         }
     }
-
 }
-
 
 /// Ricci tensor
 pub struct Ricci {
@@ -144,7 +142,7 @@ pub struct Ricci {
 
 impl Ricci {
     /// Note that these indices are arbitrary; they no longer can be composed into a matrix.
-    pub fn val(&self, μ: V4Component, ν: V4Component, ) -> f64 {
+    pub fn val(&self, μ: V4Component, ν: V4Component) -> f64 {
         let d = &self.components;
 
         match λ {
@@ -155,8 +153,7 @@ impl Ricci {
                     C::Y => d[2],
                     C::Z => d[3],
                 },
-            }
+            },
         }
     }
-
 }
