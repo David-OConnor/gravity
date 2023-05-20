@@ -1,14 +1,18 @@
 //! This file contains definitions for the most important tensors used
 //! in GR.
 
-use std::f64::consts::TAU;
+use std::{
+    f64::consts::TAU,
+    ops::{Add, AddAssign},
+};
 
 use lin_alg2::f64::Mat4;
 
 use crate::christoffel::Christoffel;
 use crate::{
-    metric::MetricTensor, Arr4dChristoffel, Arr4dMetric, Arr4dReal, Worldline, C, C_SQ, G,
+    Arr4dChristoffel, Arr4dMetric, Arr4dReal, C, C_SQ, G, metric::MetricTensor, Worldline,
 };
+use crate::metric::MetricWDiffs;
 
 pub const COMPS: [V4Component; 4] = [
     V4Component::T,
@@ -80,6 +84,30 @@ pub struct Vec4Minkowski {
     /// We store the numerical representation internally in its contravariant form (Upper index).
     /// We use the `as_lower` method to get its value in covariant form.
     pub components_u: [f64; 4],
+}
+
+impl Add<Self> for Vec4Minkowski {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+           components_u: [
+               self.components_u[0] + rhs.components_u[0],
+               self.components_u[1] + rhs.components_u[1],
+               self.components_u[2] + rhs.components_u[2],
+               self.components_u[3] + rhs.components_u[3],
+           ]
+        }
+    }
+}
+
+impl AddAssign<Self> for Vec4Minkowski {
+    fn add_assign(&mut self, rhs: Self) {
+        self.components_u[0] += rhs.components_u[0];
+        self.components_u[1] += rhs.components_u[1];
+        self.components_u[2] += rhs.components_u[2];
+        self.components_u[3] += rhs.components_u[3];
+    }
 }
 
 impl Vec4Minkowski {
@@ -264,11 +292,14 @@ impl Worldline {
     /// Create a geodesic, given a Christoffel grid, an initial position, and initial velocity.
     /// todo: Currently uses Euler integration; improve this.
     pub fn new_geodesic(
-        Γs: Arr4dChristoffel,
-        grid_posits: &Arr4dReal,
-        posit_init_i: &[usize; 4],
+        // todo: We temporarily calculate Christoffels on the fly using Analytic Schwarz metric
+        // Γs: Arr4dChristoffel,
+        // grid_posits: &Arr4dReal,
+        // posit_init_i: &[usize; 4],
+        posit_init: Vec4Minkowski, // For analytic approach
         v_init: Vec4Minkowski,
         num_events: usize,
+        grid_n: usize,
         dτ: f64,
     ) -> Self {
         let mut result = Self {
@@ -276,17 +307,35 @@ impl Worldline {
             dτ,
         };
 
-        let mut a = Vec4Minkowski::default();
+        result.events.push(posit_init);
+
         let mut v = v_init;
-        let mut s = grid_posits[posit_init_i][0][posit_init_i][1][posit_init_i][2][posit_init_i][3];
+        // let mut s = grid_posits[posit_init_i][0][posit_init_i][1][posit_init_i][2][posit_init_i][3];
+        let mut s = posit_init;
+
+        result.events.push(s);
+
+        let M = 1.;
 
         for _ in num_events {
-            result.events.push(s);
+            let mut metrics = MetricWDiffs::new(grid_n);
+            let r_on_pt = ;
+            let theta_on_pt = ;
+            metrics.on_pt = MetricTensor::new_schwarzchild(M, r, theta); // todo: phi?
+
+            let Γ = Christoffel::from_metric(
+
+            );
 
             // todo: Big problem: Your Chrisftoffels are calcualted at discrete points, so how do
             // todo you get them on the arbitrary geodesic points? Sure, you can do this if you
             // todo have an analytic metric like Schw.
-            a = Self::calc_geodesic_accel(Γs[])
+            let a = Self::calc_geodesic_accel(&Γ, v);
+
+            v += a;
+            s += v;
+
+            result.events.push(s);
         }
 
         result
@@ -313,4 +362,11 @@ impl Worldline {
 
         result
     }
+}
+
+/// We use this for indexing into metric tensor collections used in derivatives.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PrevNext {
+    P,
+    N,
 }

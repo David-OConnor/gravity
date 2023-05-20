@@ -3,17 +3,11 @@
 use std::collections::HashMap;
 
 use crate::{
-    tensors::{MetricTensor, Vec4, C, COMPS},
-    tensors::{Tensor2Config, V4Component, Vec4Minkowski},
     Arr4dMetric,
+    tensors::{C, COMPS, MetricTensor, Vec4},
+    tensors::{Tensor2Config, V4Component, Vec4Minkowski},
 };
-
-/// We use this for indexing into metric tensor collections used in derivatives.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-enum PrevNext {
-    P,
-    N,
-}
+use crate::tensors::PrevNext;
 
 /// Christoffel symbol. (Not a tensor)
 /// D = 4 and n = 3, so this has 4^3 = 64 components.

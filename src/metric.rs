@@ -6,6 +6,7 @@ use crate::{
 };
 
 use lin_alg2::f64::Mat4;
+use crate::tensors::PrevNext;
 
 /// https://github.com/einsteinpy/einsteinpy/blob/main/src/einsteinpy/metric/base_metric.py
 /// A metric tensor of order (2? 3?)
@@ -74,6 +75,7 @@ impl MetricTensor {
     /// Create a new metric tensor given Scharzchild gemoetry, ie a given distance from a
     /// given black hole (or spherical object in general?) with Scharzchild radius r_s.
     pub fn new_schwarzchild(M: f64, r: f64, θ: f64) -> Self {
+        // todo: phi instead of theta?
         let mut result = Self::default();
 
         let r_s = 2. * M * G / C_SQ;
@@ -246,7 +248,7 @@ impl MetricTensor {
 /// This is useful for when we have a Metric tensor we can find analytically; allows for accurate
 /// derivatives.
 #[derive(Clone)]
-pub struct MetricWDiffs {
+pub struct MetricGridWDiffs {
     pub on_pt: Arr4dMetric,
     pub t_prev: Arr4dMetric,
     pub t_next: Arr4dMetric,
@@ -272,6 +274,89 @@ impl MetricWDiffs {
             y_next: data.clone(),
             z_prev: data.clone(),
             z_next: data.clone(),
+        }
+    }
+
+    pub fn new_from_grid(grid_n: usize) -> Self {
+        let mut result = Self::new(grid_n);
+
+        let g_t_prev = &metrics[p_i.t - 1][p_i.x][p_i.y][p_i.z];
+        let g_t_next = &metrics[p_i.t - 1][p_i.x][p_i.y][p_i.z];
+        let g_x_prev = &metrics[p_i.t][p_i.x - 1][p_i.y][p_i.z];
+        let g_x_next = &metrics[p_i.t][p_i.x + 1][p_i.y][p_i.z];
+        let g_y_prev = &metrics[p_i.t][p_i.x][p_i.y - 1][p_i.z];
+        let g_y_next = &metrics[p_i.t][p_i.x][p_i.y + 1][p_i.z];
+        let g_z_prev = &metrics[p_i.t][p_i.x][p_i.y][p_i.z - 1];
+        let g_z_next = &metrics[p_i.t][p_i.x][p_i.y][p_i.z + 1];
+
+        result
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct MetricWDiffs {
+    pub on_pt: MetricTensor,
+    pub t_prev: MetricTensor,
+    pub t_next: MetricTensor,
+    pub x_prev: MetricTensor,
+    pub x_next: MetricTensor,
+    pub y_prev: MetricTensor,
+    pub y_next: MetricTensor,
+    pub z_prev: MetricTensor,
+    pub z_next: MetricTensor,
+}
+
+impl MetricWDiffs {
+
+    pub fn new_from_grid(grid_n: usize) -> Self {
+        let mut result = Self::deafult();
+
+        let g_t_prev = &metrics[p_i.t - 1][p_i.x][p_i.y][p_i.z];
+        let g_t_next = &metrics[p_i.t - 1][p_i.x][p_i.y][p_i.z];
+        let g_x_prev = &metrics[p_i.t][p_i.x - 1][p_i.y][p_i.z];
+        let g_x_next = &metrics[p_i.t][p_i.x + 1][p_i.y][p_i.z];
+        let g_y_prev = &metrics[p_i.t][p_i.x][p_i.y - 1][p_i.z];
+        let g_y_next = &metrics[p_i.t][p_i.x][p_i.y + 1][p_i.z];
+        let g_z_prev = &metrics[p_i.t][p_i.x][p_i.y][p_i.z - 1];
+        let g_z_next = &metrics[p_i.t][p_i.x][p_i.y][p_i.z + 1];
+
+        result
+    }
+
+    /// todo: theta or phi?
+    pub fn new_schwarz(M: f64, r: f64, theta: f64) -> Self {
+        let r_on_pt = asfd;
+        let theta_on_pt= asdf;
+
+        Self {
+            on_pt: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
+            t_prev: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
+            t_next: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
+            x_prev: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
+            x_next: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
+            y_prev: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
+            y_next: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
+            z_prev: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
+            z_next: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
+        }
+    }
+
+    pub fn val(comp: V4Component, prev_next: PrevNext) -> Arr4dMetric {
+        match comp {
+            C::T => {
+                match prev_next {
+                    PrevNext::Prev => self,
+                }
+            }
+            C::X => {
+
+            }
+            C::Y => {
+
+            }
+            C::Z => {
+
+            }
         }
     }
 }
