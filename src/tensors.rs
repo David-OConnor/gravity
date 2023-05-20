@@ -30,7 +30,7 @@ pub enum Tensor2Config {
 }
 
 /// Numerical components of a vector that may be contravariant, or covaraint.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct Vec4 {
     pub t: f64,
     pub x: f64,
@@ -56,7 +56,7 @@ pub enum V4Component {
 
 /// 4-vector in Minkowski coordinates. Capable of representations in covariant and
 /// contravariant forms. Invariant.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct Vec4Minkowski {
     /// We store the numerical representation internally in its contravariant form (Upper index).
     /// We use the `as_lower` method to get its value in covariant form.
@@ -150,6 +150,24 @@ impl Vec4Minkowski {
         -(crate::C_SQ * self.t.powi(2)) + self.x.powi(2) + self.y.powi(2) + self.z.powi(2)
     }
 
+    pub fn val(&self, comp: V4Component) -> f64 {
+        match comp {
+            C::T => self.t,
+            C::X => self.x,
+            C::Y => self.y,
+            C::Z => self.z,
+        }
+    }
+
+    pub fn val_mut(&mut self, comp: V4Component) -> &mut f64 {
+        &mut match comp {
+            C::T => self.t,
+            C::X => self.x,
+            C::Y => self.y,
+            C::Z => self.z,
+        }
+    }
+
     // todo
     // pub fn lortenz_transform(&self, v: f64) -> Self {
     //     let β = v.powi(2) / C_SQ;
@@ -208,11 +226,11 @@ impl StressEnergyTensor {
 /// See the accepted answer here for a nice explanation: https://math.stackexchange.com/questions/1410793/matrix-representations-of-tensors
 #[derive(Clone)]
 pub struct MetricTensor {
-    // /// Configuration of indices
-    // config: Tensor2Config,
     /// Matrix representation: A 4x4 matrix of minkowski space. This is in LL config. ie g_{m n}.
     /// We get other configs using our `as_config` method.
     // We use a Mat4 here to take advantage of inverse, and multiplying by a constant.
+    // todo: The metric only has 10 independent components because it's symmetric
+    // components_ll: [f64; 10],
     matrix_ll: Mat4,
     /// Ie the inverse metric; it's upper config.
     matrix_uu: Mat4,

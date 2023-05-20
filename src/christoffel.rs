@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::tensors::MetricTensor;
+use crate::tensors::{MetricTensor, Vec4};
 use crate::{
     tensors::{Tensor2Config, V4Component, Vec4Minkowski},
     Arr4dMetric, C,
@@ -133,6 +133,37 @@ impl Christoffel {
         }
 
         result
+    }
+
+    /// Calculate the acceleration of the geodesic, at this point in spacetime.
+    /// d^2 x^μ / dλ^2 + Γ^μ_ρσ dx^ρ /dλ dx^σ /dλ = 0
+    /// todo: Consider where this should go. Keep as method of Christoffel, or make a free fn? Or method
+    /// // todo on Worldline?
+    /// todo: What is x?
+    pub fn calc_geodesic_accel(&self, x: Vec4Set, ds: f64) -> Vec4Minkowski {
+        let mut result = Vec4Minkowski::default();
+
+        let comps = [C::T, C::X, C::Y, C::Z];
+
+        for μ in &comps {
+            for ν in &comps {
+                result.value_upper.t +=  -self.val(C::T, *μ, *ν)
+                    // todo: Sort this out/think about it, and what x is, what type you're passing etc.
+
+                    // todo: Uhoh. this is a relation between x' and x''; not so simple
+                    * (x.next.val(μ) - (x.prev.val(μ))) * 0.5 / ds
+                    * (x.next.val(μ) - (x.prev.val(μ))) * 0.5 / ds;
+
+
+
+                result.value_upper.x +=  -self.val(C::X, *μ, *ν) * asdf;
+                result.value_upper.y +=  -self.val(C::Y, *μ, *ν) * asdf;
+                result.value_upper.z +=  -self.val(C::Z, *μ, *ν) * asdf;
+            }
+        }
+
+        result
+
     }
 
     /// Same idea as for the metric tensor.

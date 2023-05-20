@@ -217,11 +217,15 @@ pub fn update_grid_posits(
 
 /// Helper fn for generating neighboring points for the Schwarzchild metric
 fn find_r_θ(posit_sample: Vec4Minkowski, posit_mass: Vec3) -> (f64, f64) {
-    let diff = posit_sample - posit_mass; // todo: Invalid op...
-    // todo: Mass is at a Vec3, sample is at a vec4...
-    let r = posit.mag_sq().sqrt();
-// todo: QC this
-    let θ = (-posit.t.powi(2) + posit.x.powi(2) + posit.y.powi(2)).sqrt().atan2(posit.z);
+    let diff = Vec3::new(
+        posit_sample.as_upper().x - posit_mass.x,
+        posit_sample.as_upper().y - posit_mass.y,
+        posit_sample.as_upper().z - posit_mass.zx,
+    );
+
+    let r = diff.magnitude();
+
+    let θ = (diff.x.powi(2) + diff.y.powi(2)).sqrt().atan2(posit.z);
 
     (r, θ)
 }
