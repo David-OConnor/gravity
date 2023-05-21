@@ -26,9 +26,10 @@ mod tensors;
 mod ui;
 mod util;
 
+use crate::tensors::Worldline;
 use crate::{
     christoffel::Christoffel,
-    metric::{MetricTensor, MetricWDiffs},
+    metric::{MetricGridWDiffs, MetricTensor, MetricWDiffs},
     tensors::{Vec4, Vec4Minkowski},
 };
 
@@ -54,7 +55,7 @@ fn gamma(v: f64) -> f64 {
     1. / (1. - v.powi(2) / C_SQ).sqrt()
 }
 
-struct Particle {
+pub struct Particle {
     pub posit: Vec3,
     pub mass: f64,
 }
@@ -65,10 +66,13 @@ pub struct State {
     pub schwarzchild_rad: f64,
     pub particles: Vec<Particle>,
     // pub field_metric: Arr4dMetric,
-    pub field_metric: metric::MetricWDiffs,
+    pub field_metric: MetricGridWDiffs,
     pub field_christoffel: Arr4dChristoffel,
-    pub grid_posits: Arr4dVec,
+    pub grid_posits: Arr4dVec4,
     pub grid_n: usize,
+    pub worldlines: Vec<Worldline>,
+    pub schwarz_mass: (Vec3, f64), // posit, mass
+    pub z_displayed: f64,
 }
 
 /// Make a new 3D grid of position, time 4-vecs in Minknowski space
@@ -115,7 +119,7 @@ pub fn new_data_metric(n: usize) -> Arr4dMetric {
 pub fn new_data_christoffel(n: usize) -> Arr4dChristoffel {
     let mut z = Vec::new();
 
-    z.resize(n, christoffel::default());
+    z.resize(n, Christoffel::default());
 
     let mut y = Vec::new();
     y.resize(n, z);
@@ -129,16 +133,17 @@ pub fn new_data_christoffel(n: usize) -> Arr4dChristoffel {
     t
 }
 
-/// Calcaulte teh scharzchild spacetime interal.
+/// Calcaulte teh scharzchild spacetime intervl.
 pub fn swarzchild_interval(r_s: f64, r: f64, dr: f64, dθ: f64, dφ: f64) -> f64 {
     let r_const = 1. - r_s / r;
     let g_omega = dθ.powi(2) + ((dφ.powi(2)).sin()).powi(2);
 
-    -r_const * C_SQ * dt.powi(2) + 1. / r_const * dr.powi(2) + r.powi(2) * g_omega
+    // -r_const * C_SQ * dt.powi(2) + 1. / r_const * dr.powi(2) + r.powi(2) * g_omega
+    0.
 }
 
 /// Update our grid positions. Run this when we change grid bounds or spacing.
-pub fn update_grid_posits(grid_posits: &mut Arr4dVec, grid_min: f64, grid_max: f64, n: usize) {
+pub fn update_grid_posits(grid_posits: &mut Arr4dVec4, grid_min: f64, grid_max: f64, n: usize) {
     let grid_lin = util::linspace((grid_min, grid_max), n);
 
     // Set up a grid with values that increase in distance the farther we are from the center.
@@ -277,6 +282,29 @@ fn main() {
     //     }
     // }
 
+    let schwarz_mass = (Vec3::new_zero(), 1.);
+
+    let mut worldlines = Vec::new();
+    let num_events = 100;
+    let dτ = 1.; // todo?
+
+    for (posit_init, v_init) in &[
+        // todo: What should initial time component be for v?
+        (
+            Vec4Minkowski::new(0., 10., 0., 0.),
+            Vec4Minkowski::new(0.1, 0., 0., 0.),
+        ),
+    ] {
+        worldlines.push(Worldline::new_geodesic_schwarz(
+            *posit_init,
+            *v_init,
+            num_events,
+            schwarz_mass.0,
+            schwarz_mass.1,
+            dτ,
+        ));
+    }
+
     let state = State {
         schwarzchild_coords,
         schwarzchild_rad,
@@ -285,6 +313,9 @@ fn main() {
         field_christoffel,
         grid_posits,
         grid_n,
+        worldlines,
+        schwarz_mass,
+        z_displayed: 0.,
     };
 
     render::render(state);

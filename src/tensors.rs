@@ -10,7 +10,7 @@ use lin_alg2::f64::{Mat4, Vec3};
 
 use crate::{
     christoffel::Christoffel, metric::MetricTensor, metric::MetricWDiffs, Arr4dChristoffel,
-    Arr4dMetric, Arr4dReal, Worldline, C, C_SQ, G,
+    Arr4dMetric, Arr4dReal, C, C_SQ, G,
 };
 
 pub const COMPS: [V4Component; 4] = [
@@ -212,11 +212,11 @@ impl Vec4Minkowski {
 
     // pub fn val_mut(&mut self, comp: V4Component, config: Tensor1Config) -> &mut f64 {
     pub fn val_mut(&mut self, comp: V4Component) -> &mut f64 {
-        &mut match comp {
-            C::T => self.components_u[0],
-            C::X => self.components_u[1],
-            C::Y => self.components_u[2],
-            C::Z => self.components_u[3],
+        match comp {
+            C::T => &mut self.components_u[0],
+            C::X => &mut self.components_u[1],
+            C::Y => &mut self.components_u[2],
+            C::Z => &mut self.components_u[3],
         }
     }
 
@@ -281,14 +281,14 @@ impl StressEnergyTensor {
 }
 
 pub struct EinsteinTensor {
-    pub coords: [f64; 1],
-    pub con: i8,
+    // pub coords: [f64; 1],
+    // pub con: i8,
     pub components: [f64; 1],
-    pub index_values: [i8; 1],
+    // pub index_values: [i8; 1],
 }
 
 impl EinsteinTensor {
-    pub fn new(ricci: &RicciTensor) {}
+    // pub fn new(ricci: &RicciTensor) {}
 }
 
 pub struct Event {
@@ -347,7 +347,7 @@ impl Worldline {
         });
 
         for _ in 0..num_events {
-            let mut metrics = MetricWDiffs::new_schwarz(M, posit_sample, posit_mass);
+            let mut metrics = MetricWDiffs::new_schwarz(M, s, posit_mass);
             let Γ = Christoffel::from_metric(&metrics, dτ);
 
             let a = Self::calc_geodesic_accel(&Γ, v);

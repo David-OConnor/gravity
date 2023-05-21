@@ -144,7 +144,7 @@ impl MetricTensor {
 
         for μ in &COMPS {
             for ν in &COMPS {
-                result += self.val(*μ, *ν, Tensor2Config::Ll) * a.val(*μ) & b.val(*ν);
+                result += self.val(*μ, *ν, Tensor2Config::Ll) * vec_a.val(*μ) * vec_b.val(*ν);
             }
         }
 
@@ -206,7 +206,7 @@ impl MetricTensor {
     /// Similar to `val`, but mutable.
     /// todo: DRY with `.val`
     pub fn val_mut(&mut self, μ: V4Component, ν: V4Component, config: Tensor2Config) -> &mut f64 {
-        let g = &mut match config {
+        let g = match config {
             Tensor2Config::Uu => &mut self.components_uu,
             Tensor2Config::Ul => {
                 // let a = ETA_MINKOWSKI * self.matrix_ll;
@@ -218,33 +218,33 @@ impl MetricTensor {
             Tensor2Config::Ll => &mut self.components_ll,
         };
 
-        &mut match μ {
+        match μ {
             C::T => match ν {
-                C::T => g[0],
-                C::X => g[4],
-                C::Y => g[7],
-                C::Z => g[9],
+                C::T => &mut g[0],
+                C::X => &mut g[4],
+                C::Y => &mut g[7],
+                C::Z => &mut g[9],
             },
 
             C::X => match ν {
-                C::T => g[4],
-                C::X => g[1],
-                C::Y => g[5],
-                C::Z => g[8],
+                C::T => &mut g[4],
+                C::X => &mut g[1],
+                C::Y => &mut g[5],
+                C::Z => &mut g[8],
             },
 
             C::Y => match ν {
-                C::T => g[7],
-                C::X => g[5],
-                C::Y => g[2],
-                C::Z => g[6],
+                C::T => &mut g[7],
+                C::X => &mut g[5],
+                C::Y => &mut g[2],
+                C::Z => &mut g[6],
             },
 
             C::Z => match ν {
-                C::T => g[9],
-                C::X => g[8],
-                C::Y => g[6],
-                C::Z => g[3],
+                C::T => &mut g[9],
+                C::X => &mut g[8],
+                C::Y => &mut g[6],
+                C::Z => &mut g[3],
             },
         }
     }
@@ -267,7 +267,7 @@ pub struct MetricGridWDiffs {
     pub z_next: Arr4dMetric,
 }
 
-impl MetricWDiffsGrid {
+impl MetricGridWDiffs {
     pub fn new(grid_n: usize) -> Self {
         let data = crate::new_data_metric(grid_n);
 
@@ -331,52 +331,52 @@ impl MetricWDiffs {
     /// todo: θ or phi?
     pub fn new_schwarz(M: f64, posit_sample: Vec4Minkowski, posit_mass: Vec3) -> Self {
         let posit_t_prev = Vec4Minkowski::new(
-            posit.t - H,
+            posit_sample.t() - H,
             posit_sample.x(),
             posit_sample.y(),
             posit_sample.z(),
         );
         let posit_t_next = Vec4Minkowski::new(
-            posit.t + H,
+            posit_sample.t() + H,
             posit_sample.x(),
             posit_sample.y(),
             posit_sample.z(),
         );
 
         let posit_x_prev = Vec4Minkowski::new(
-            posit.t,
+            posit_sample.t(),
             posit_sample.x() - H,
             posit_sample.y(),
             posit_sample.z(),
         );
         let posit_x_next = Vec4Minkowski::new(
-            posit.t,
+            posit_sample.t(),
             posit_sample.x() + H,
             posit_sample.y(),
             posit_sample.z(),
         );
 
         let posit_y_prev = Vec4Minkowski::new(
-            posit.t,
+            posit_sample.t(),
             posit_sample.x(),
             posit_sample.y() - H,
             posit_sample.z(),
         );
         let posit_y_next = Vec4Minkowski::new(
-            posit.t,
+            posit_sample.t(),
             posit_sample.x(),
             posit_sample.y() + H,
             posit_sample.z(),
         );
 
         let posit_z_prev = Vec4Minkowski::new(
-            posit.t,
+            posit_sample.t(),
             posit_sample.x(),
             posit_sample.y(),
             posit_sample.z() - H,
         );
         let posit_z_next = Vec4Minkowski::new(
-            posit.t,
+            posit_sample.t(),
             posit_sample.x(),
             posit_sample.y(),
             posit_sample.z() + H,
@@ -387,12 +387,12 @@ impl MetricWDiffs {
 
         let (r_t_prev, θ_t_prev) = crate::find_schwarz_params(posit_t_prev, posit_mass);
         let (r_t_next, θ_t_next) = crate::find_schwarz_params(posit_t_next, posit_mass);
-        let (r_x_prev, θ_x_prev) = crate::find_schwarz_params(posit_x_prev, posix_mass);
-        let (r_x_next, θ_x_next) = crate::find_schwarz_params(posit_x_next, posix_mass);
-        let (r_y_prev, θ_y_prev) = crate::find_schwarz_params(posit_y_prev, posiy_mass);
+        let (r_x_prev, θ_x_prev) = crate::find_schwarz_params(posit_x_prev, posit_mass);
+        let (r_x_next, θ_x_next) = crate::find_schwarz_params(posit_x_next, posit_mass);
+        let (r_y_prev, θ_y_prev) = crate::find_schwarz_params(posit_y_prev, posit_mass);
         let (r_y_next, θ_y_next) = crate::find_schwarz_params(posit_y_next, posit_mass);
-        let (r_z_prev, θ_z_prev) = crate::find_schwarz_params(posit_z_prev, posiz_mass);
-        let (r_z_next, θ_z_next) = crate::find_schwarz_params(posit_z_next, posiz_mass);
+        let (r_z_prev, θ_z_prev) = crate::find_schwarz_params(posit_z_prev, posit_mass);
+        let (r_z_next, θ_z_next) = crate::find_schwarz_params(posit_z_next, posit_mass);
 
         Self {
             on_pt: MetricTensor::new_schwarzchild(M, r_on_pt, θ_on_pt),
