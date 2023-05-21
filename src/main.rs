@@ -53,15 +53,6 @@ fn gamma(v: f64) -> f64 {
     1. / (1. - v.powi(2) / C_SQ).sqrt()
 }
 
-/// Used for indexing into spacetime grids, eg for metric tensors.
-#[derive(Clone, Copy)]
-pub struct PositIndex {
-    pub t: usize,
-    pub x: usize,
-    pub y: usize,
-    pub z: usize,
-}
-
 struct Particle {
     pub posit: Vec3,
     pub mass: f64,
@@ -162,7 +153,8 @@ pub fn update_grid_posits(grid_posits: &mut Arr3dVec, grid_min: f64, grid_max: f
 }
 
 /// Helper fn for generating neighboring points for the Schwarzchild metric
-fn find_r_θ(posit_sample: Vec4Minkowski, posit_mass: Vec3) -> (f64, f64) {
+/// This is a conversion from cartesian to spherical coordinates.
+pub fn θfind_schwarz_params(posit_sample: Vec4Minkowski, posit_mass: Vec3) -> (f64, f64) {
     let diff = Vec3::new(
         posit_sample.as_upper().x - posit_mass.x,
         posit_sample.as_upper().y - posit_mass.y,
@@ -171,6 +163,7 @@ fn find_r_θ(posit_sample: Vec4Minkowski, posit_mass: Vec3) -> (f64, f64) {
 
     let r = diff.magnitude();
 
+    // todo: phi or theta??
     let θ = (diff.x.powi(2) + diff.y.powi(2)).sqrt().atan2(posit.z);
 
     (r, θ)
@@ -201,6 +194,7 @@ fn main() {
                 for l in 0..grid_n {
                     let posit = grid_posits[i][j][k][l];
 
+                    // todo: DRY with code in metrics; consolidate.
                     let posit_t_prev = Vec4Minkowski::new(
                         posit.t - H,
                         posit_sample.x,
@@ -253,19 +247,27 @@ fn main() {
                         posit_sample.z + H,
                     );
 
-                    let (r_on_pt, θ_on_pt) = find_r_θ(posit, schwarzchild_coords);
+                    let (r_on_pt, θ_on_pt) = find_schwarz_params(posit, schwarzchild_coords);
 
-                    let (r_t_prev, θ_t_prev) = find_r_θ(posit_t_prev, schwarzchild_coords);
-                    let (r_t_next, θ_t_next) = find_r_θ(posit_t_next, schwarzchild_coords);
+                    let (r_t_prev, θ_t_prev) =
+                        find_schwarz_params(posit_t_prev, schwarzchild_coords);
+                    let (r_t_next, θ_t_next) =
+                        find_schwarz_params(posit_t_next, schwarzchild_coords);
 
-                    let (r_x_prev, θ_x_prev) = find_r_θ(posit_x_prev, schwarzchild_coords);
-                    let (r_x_next, θ_x_next) = find_r_θ(posit_x_next, schwarzchild_coords);
+                    let (r_x_prev, θ_x_prev) =
+                        find_schwarz_params(posit_x_prev, schwarzchild_coords);
+                    let (r_x_next, θ_x_next) =
+                        find_schwarz_params(posit_x_next, schwarzchild_coords);
 
-                    let (r_y_prev, θ_y_prev) = find_r_θ(posit_y_prev, schwarzchild_coords);
-                    let (r_y_next, θ_y_next) = find_r_θ(posit_y_next, schwarzchild_coords);
+                    let (r_y_prev, θ_y_prev) =
+                        find_schwarz_params(posit_y_prev, schwarzchild_coords);
+                    let (r_y_next, θ_y_next) =
+                        find_schwarz_params(posit_y_next, schwarzchild_coords);
 
-                    let (r_z_prev, θ_z_prev) = find_r_θ(posit_z_prev, schwarzchild_coords);
-                    let (r_z_next, θ_z_next) = find_r_θ(posit_z_next, schwarzchild_coords);
+                    let (r_z_prev, θ_z_prev) =
+                        find_schwarz_params(posit_z_prev, schwarzchild_coords);
+                    let (r_z_next, θ_z_next) =
+                        find_schwarz_params(posit_z_next, schwarzchild_coords);
 
                     field_metric.on_pt[i][j][k][l] =
                         MetricTensor::new_schwarzchild(schwarzchild_rad, r_on_pt, θ_on_pt);

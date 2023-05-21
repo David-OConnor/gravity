@@ -6,13 +6,12 @@ use std::{
     ops::{Add, AddAssign},
 };
 
-use lin_alg2::f64::Mat4;
+use lin_alg2::f64::{Mat4, Vec3};
 
-use crate::christoffel::Christoffel;
 use crate::{
-    Arr4dChristoffel, Arr4dMetric, Arr4dReal, C, C_SQ, G, metric::MetricTensor, Worldline,
+    christoffel::Christoffel, metric::MetricTensor, metric::MetricWDiffs, Arr4dChristoffel,
+    Arr4dMetric, Arr4dReal, Worldline, C, C_SQ, G,
 };
-use crate::metric::MetricWDiffs;
 
 pub const COMPS: [V4Component; 4] = [
     V4Component::T,
@@ -91,12 +90,12 @@ impl Add<Self> for Vec4Minkowski {
 
     fn add(self, rhs: Self) -> Self::Output {
         Self {
-           components_u: [
-               self.components_u[0] + rhs.components_u[0],
-               self.components_u[1] + rhs.components_u[1],
-               self.components_u[2] + rhs.components_u[2],
-               self.components_u[3] + rhs.components_u[3],
-           ]
+            components_u: [
+                self.components_u[0] + rhs.components_u[0],
+                self.components_u[1] + rhs.components_u[1],
+                self.components_u[2] + rhs.components_u[2],
+                self.components_u[3] + rhs.components_u[3],
+            ],
         }
     }
 }
@@ -222,6 +221,15 @@ impl Vec4Minkowski {
     // }
 }
 
+/// Used for indexing into spacetime grids, eg for metric tensors.
+#[derive(Clone, Copy)]
+pub struct PositIndex {
+    pub t: usize,
+    pub x: usize,
+    pub y: usize,
+    pub z: usize,
+}
+
 /// C+P from Metric Tensor, with changes A/R. Combine with other tensors like Metric A/R.
 /// Can be used to generate the Einstein tensor.
 pub struct StressEnergyTensor {
@@ -267,10 +275,16 @@ impl EinsteinTensor {
     pub fn new(ricci: &RicciTensor) {}
 }
 
+pub struct Event {
+    pub posit: Vec4Minkowski,
+    pub velocity: Vec4Minkowski,
+    pub accel: Vec4Minkowski,
+}
+
 /// The path a particle takes through spacetime. Can be a geodesic.
 pub struct Worldline {
     /// A list of events, with constant proper-time spacing.
-    pub events: Vec<Vec4Minkowski>,
+    pub events: Vec<Event>,
     // todo: v and accel too?
     /// Defines the spacing between events. A smaller spacing is more precise.
     /// todo: Maybe this isn't general, ie doesn't apply if mass is 0, like for photons?
@@ -290,13 +304,58 @@ impl Default for Worldline {
 
 impl Worldline {
     /// Create a geodesic, given a Christoffel grid, an initial position, and initial velocity.
+    /// Takes advantage of the Schwarzchild metric's analytic metric to generate Christoffel symbols
+    /// at the correct spots without interpolate.
+    /// todo: Currently uses Euler integration; improve this.
+    pub fn new_geodesic_schwarz(
+        posit_init: Vec4Minkowski,
+        v_init: Vec4Minkowski,
+        num_events: usize,
+        posit_mass: Vec3,
+        M: f64,
+        dτ: f64,
+    ) -> Self {
+        let mut result = Self {
+            events: Vec::new(),
+            dτ,
+        };
+
+        let mut v = v_init;
+        // let mut s = grid_posits[posit_init_i][0][posit_init_i][1][posit_init_i][2][posit_init_i][3];
+        let mut s = posit_init;
+
+        result.events.push(Event {
+            posit: posit_init,
+            velocity: v,
+            accel: Vec4Minkowski::default(),
+        });
+
+        for _ in num_events {
+            let mut metrics = MetricWDiffs::new_schwarz(M, posit_sample, posit_mass);
+            let Γ = Christoffel::from_metric(&metrics, dτ);
+
+            let a = Self::calc_geodesic_accel(&Γ, v);
+
+            v += a;
+            s += v;
+
+            result.events.push(Event {
+                posit: s,
+                velocity: v,
+                accel: a,
+            });
+        }
+
+        result
+    }
+
+    /// Create a geodesic, given a Christoffel grid, an initial position, and initial velocity.
+    /// Interpolates Christoffel symbols from our grid.
     /// todo: Currently uses Euler integration; improve this.
     pub fn new_geodesic(
-        // todo: We temporarily calculate Christoffels on the fly using Analytic Schwarz metric
-        // Γs: Arr4dChristoffel,
-        // grid_posits: &Arr4dReal,
-        // posit_init_i: &[usize; 4],
-        posit_init: Vec4Minkowski, // For analytic approach
+        Γs: Arr4dChristoffel,
+        grid_posits: &Arr4dReal,
+        posit_init: Vec4Minkowski,
         v_init: Vec4Minkowski,
         num_events: usize,
         grid_n: usize,
@@ -307,44 +366,43 @@ impl Worldline {
             dτ,
         };
 
-        result.events.push(posit_init);
-
         let mut v = v_init;
         // let mut s = grid_posits[posit_init_i][0][posit_init_i][1][posit_init_i][2][posit_init_i][3];
         let mut s = posit_init;
 
-        result.events.push(s);
+        result.events.push(Event {
+            posit: posit_init,
+            velocity: v,
+            accel: Vec4Minkowski::default(),
+        });
 
-        let M = 1.;
-
+        // todo: Much of this function is in common with your analytic-based SCHWarz one.
         for _ in num_events {
-            let mut metrics = MetricWDiffs::new(grid_n);
-            let r_on_pt = ;
-            let theta_on_pt = ;
-            metrics.on_pt = MetricTensor::new_schwarzchild(M, r, theta); // todo: phi?
+            // let mut metrics = MetricWDiffs::from_grid();
 
-            let Γ = Christoffel::from_metric(
+            // todo: INterpolate
+            // let Γ = Christoffel::from_metric(&metrics, dτ);
+            //
 
-            );
-
-            // todo: Big problem: Your Chrisftoffels are calcualted at discrete points, so how do
-            // todo you get them on the arbitrary geodesic points? Sure, you can do this if you
-            // todo have an analytic metric like Schw.
-            let a = Self::calc_geodesic_accel(&Γ, v);
-
-            v += a;
-            s += v;
-
-            result.events.push(s);
+            // let a = Self::calc_geodesic_accel(&Γ, v);
+            //
+            // v += a;
+            // s += v;
+            //
+            // result.events.push(Event {
+            //     posit: s,
+            //     velocity: v,
+            //     accel: a,
+            // });
         }
 
         result
     }
 
-    /// τ_AB = \int (0, 1) sqrt(-g_μv(x^alpha(\sigma)) dx^u/dsigma dx^v / dsigma) dsigma
-    pub fn calc_proper_time(&self) -> f64 {
-        0.
-    }
+    // /// τ_AB = \int (0, 1) sqrt(-g_μv(x^alpha(\sigma)) dx^u/dsigma dx^v / dsigma) dsigma
+    // pub fn calc_proper_time(&self) -> f64 {
+    //     0.
+    // }
 
     /// Calculate the acceleration (relative to τ) of a geodesic, at a given spacetime point (encompassed by
     /// the Christoffel symbol), and velocity (relative to τ) at that point.

@@ -1,12 +1,14 @@
 //! The Metric tensor and related data.
 
 use crate::{
-    tensors::{MetricTensor, Tensor2Config, V4Component, Vec4, Vec4Minkowski, C, COMPS},
-    Arr4dMetric, C_SQ, G,
+    tensors::{
+        MetricTensor, PositIndex, Tensor2Config, V4Component, Vec4, Vec4Minkowski, C, COMPS,
+    },
+    Arr4dMetric, Arr4dReal, C_SQ, G, H,
 };
 
-use lin_alg2::f64::Mat4;
 use crate::tensors::PrevNext;
+use lin_alg2::f64::{Mat4, Vec3};
 
 /// https://github.com/einsteinpy/einsteinpy/blob/main/src/einsteinpy/metric/base_metric.py
 /// A metric tensor of order (2? 3?)
@@ -98,7 +100,7 @@ impl MetricTensor {
         let c = &self.components_ll;
 
         #[rustfmt::skip]
-        let matrix_ll = Mat4::new([
+            let matrix_ll = Mat4::new([
             c[0], c[4], c[7], c[9],
             c[4], c[1], c[2], c[8],
             c[7], c[5], c[2], c[6],
@@ -276,21 +278,6 @@ impl MetricWDiffs {
             z_next: data.clone(),
         }
     }
-
-    pub fn new_from_grid(grid_n: usize) -> Self {
-        let mut result = Self::new(grid_n);
-
-        let g_t_prev = &metrics[p_i.t - 1][p_i.x][p_i.y][p_i.z];
-        let g_t_next = &metrics[p_i.t - 1][p_i.x][p_i.y][p_i.z];
-        let g_x_prev = &metrics[p_i.t][p_i.x - 1][p_i.y][p_i.z];
-        let g_x_next = &metrics[p_i.t][p_i.x + 1][p_i.y][p_i.z];
-        let g_y_prev = &metrics[p_i.t][p_i.x][p_i.y - 1][p_i.z];
-        let g_y_next = &metrics[p_i.t][p_i.x][p_i.y + 1][p_i.z];
-        let g_z_prev = &metrics[p_i.t][p_i.x][p_i.y][p_i.z - 1];
-        let g_z_next = &metrics[p_i.t][p_i.x][p_i.y][p_i.z + 1];
-
-        result
-    }
 }
 
 #[derive(Clone, Default)]
@@ -307,56 +294,98 @@ pub struct MetricWDiffs {
 }
 
 impl MetricWDiffs {
+    pub fn from_grid(metrics: &Arr4dMetric, p_i: &PositIndex, grid_n: usize) -> Self {
+        // todo: Make sure is aren't at the edges. If so, return etc.
+        if p_i.t == 0
+            || p_i.t == grid_n - 1
+            || p_i.x == 0
+            || p_i.x == grid_n - 1
+            || p_i.y == 0
+            || p_i.y == grid_n - 1
+            || p_i.z == 0
+            || p_i.z == grid_n - 1
+        {
+            println!("On edge; return an error or some other workaround.")
+        }
 
-    pub fn new_from_grid(grid_n: usize) -> Self {
-        let mut result = Self::deafult();
-
-        let g_t_prev = &metrics[p_i.t - 1][p_i.x][p_i.y][p_i.z];
-        let g_t_next = &metrics[p_i.t - 1][p_i.x][p_i.y][p_i.z];
-        let g_x_prev = &metrics[p_i.t][p_i.x - 1][p_i.y][p_i.z];
-        let g_x_next = &metrics[p_i.t][p_i.x + 1][p_i.y][p_i.z];
-        let g_y_prev = &metrics[p_i.t][p_i.x][p_i.y - 1][p_i.z];
-        let g_y_next = &metrics[p_i.t][p_i.x][p_i.y + 1][p_i.z];
-        let g_z_prev = &metrics[p_i.t][p_i.x][p_i.y][p_i.z - 1];
-        let g_z_next = &metrics[p_i.t][p_i.x][p_i.y][p_i.z + 1];
-
-        result
-    }
-
-    /// todo: theta or phi?
-    pub fn new_schwarz(M: f64, r: f64, theta: f64) -> Self {
-        let r_on_pt = asfd;
-        let theta_on_pt= asdf;
+        // todo: Refs instead of cloning, to make this more performant
 
         Self {
-            on_pt: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
-            t_prev: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
-            t_next: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
-            x_prev: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
-            x_next: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
-            y_prev: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
-            y_next: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
-            z_prev: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
-            z_next: MetricTensor::new_schwarzchild(M, r_on_pt, theta_on_pt),
+            on_pt: metrics[p_i.t][p_i.x][p_i.y][p_i.z].clone(),
+            t_prev: metrics[p_i.t - 1][p_i.x][p_i.y][p_i.z].clone(),
+            t_next: metrics[p_i.t - 1][p_i.x][p_i.y][p_i.z].clone(),
+            x_prev: metrics[p_i.t][p_i.x - 1][p_i.y][p_i.z].clone(),
+            x_next: metrics[p_i.t][p_i.x + 1][p_i.y][p_i.z].clone(),
+            y_prev: metrics[p_i.t][p_i.x][p_i.y - 1][p_i.z].clone(),
+            y_next: metrics[p_i.t][p_i.x][p_i.y + 1][p_i.z].clone(),
+            z_prev: metrics[p_i.t][p_i.x][p_i.y][p_i.z - 1].clone(),
+            z_next: metrics[p_i.t][p_i.x][p_i.y][p_i.z + 1].clone(),
         }
     }
 
-    pub fn val(comp: V4Component, prev_next: PrevNext) -> Arr4dMetric {
-        match comp {
-            C::T => {
-                match prev_next {
-                    PrevNext::Prev => self,
-                }
-            }
-            C::X => {
+    /// todo: θ or phi?
+    pub fn new_schwarz(M: f64, posit_sample: Vec4Minkowski, posit_mass: Vec3) -> Self {
+        let posit_t_prev =
+            Vec4Minkowski::new(posit.t - H, posit_sample.x, posit_sample.y, posit_sample.z);
+        let posit_t_next =
+            Vec4Minkowski::new(posit.t + H, posit_sample.x, posit_sample.y, posit_sample.z);
 
-            }
-            C::Y => {
+        let posit_x_prev =
+            Vec4Minkowski::new(posit.t, posit_sample.x - H, posit_sample.y, posit_sample.z);
+        let posit_x_next =
+            Vec4Minkowski::new(posit.t, posit_sample.x + H, posit_sample.y, posit_sample.z);
 
-            }
-            C::Z => {
+        let posit_y_prev =
+            Vec4Minkowski::new(posit.t, posit_sample.x, posit_sample.y - H, posit_sample.z);
+        let posit_y_next =
+            Vec4Minkowski::new(posit.t, posit_sample.x, posit_sample.y + H, posit_sample.z);
 
-            }
+        let posit_z_prev =
+            Vec4Minkowski::new(posit.t, posit_sample.x, posit_sample.y, posit_sample.z - H);
+        let posit_z_next =
+            Vec4Minkowski::new(posit.t, posit_sample.x, posit_sample.y, posit_sample.z + H);
+
+        //todo: theta or phi?
+        let (r_on_pt, θ_on_pt) = crate::find_schwarz_params(posit_sample, posit_mass);
+
+        let (r_t_prev, θ_t_prev) = crate::find_schwarz_params(posit_t_prev, posit_mass);
+        let (r_t_next, θ_t_next) = crate::find_schwarz_params(posit_t_next, posit_mass);
+        let (r_x_prev, θ_x_prev) = crate::find_schwarz_params(posit_x_prev, posix_mass);
+        let (r_x_next, θ_x_next) = crate::find_schwarz_params(posit_x_next, posix_mass);
+        let (r_y_prev, θ_y_prev) = crate::find_schwarz_params(posit_y_prev, posiy_mass);
+        let (r_y_next, θ_y_next) = crate::find_schwarz_params(posit_y_next, posit_mass);
+        let (r_z_prev, θ_z_prev) = crate::find_schwarz_params(posit_z_prev, posiz_mass);
+        let (r_z_next, θ_z_next) = crate::find_schwarz_params(posit_z_next, posiz_mass);
+
+        Self {
+            on_pt: MetricTensor::new_schwarzchild(M, r_on_pt, θ_on_pt),
+            t_prev: MetricTensor::new_schwarzchild(M, r_t_prev, θ_t_prev),
+            t_next: MetricTensor::new_schwarzchild(M, r_t_next, θ_t_next),
+            x_prev: MetricTensor::new_schwarzchild(M, r_x_prev, θ_x_prev),
+            x_next: MetricTensor::new_schwarzchild(M, r_x_next, θ_x_next),
+            y_prev: MetricTensor::new_schwarzchild(M, r_y_prev, θ_y_prev),
+            y_next: MetricTensor::new_schwarzchild(M, r_y_next, θ_y_next),
+            z_prev: MetricTensor::new_schwarzchild(M, r_z_prev, θ_z_prev),
+            z_next: MetricTensor::new_schwarzchild(M, r_z_next, θ_z_next),
         }
     }
+
+    // pub fn val(comp: V4Component, prev_next: PrevNext) -> Arr4dMetric {
+    //     match comp {
+    //         C::T => {
+    //             match prev_next {
+    //                 PrevNext::Prev => self,
+    //             }
+    //         }
+    //         C::X => {
+    //
+    //         }
+    //         C::Y => {
+    //
+    //         }
+    //         C::Z => {
+    //
+    //         }
+    //     }
+    // }
 }

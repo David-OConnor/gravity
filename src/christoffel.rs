@@ -3,11 +3,13 @@
 use std::collections::HashMap;
 
 use crate::{
+    metric::MetricWDiffs,
+    tensors::{
+        MetricTensor, PositIndex, PrevNext, Tensor2Config, V4Component, Vec4, Vec4Minkowski, C,
+        COMPS,
+    },
     Arr4dMetric,
-    tensors::{C, COMPS, MetricTensor, Vec4},
-    tensors::{Tensor2Config, V4Component, Vec4Minkowski},
 };
-use crate::tensors::PrevNext;
 
 /// Christoffel symbol. (Not a tensor)
 /// D = 4 and n = 3, so this has 4^3 = 64 components.
@@ -59,38 +61,23 @@ impl Christoffel {
     /// ds is the diff in (what? Spacetime interval? Proper time?) between points. I suppose
     /// it's just the spacing of the grid.
     // pub fn from_metric(metrics: &crate::Arr4dMetric, posit: &Vec4Minkowski, p_i: crate::PositIndex) -> Self {
-    pub fn from_metric(metrics: &Arr4dMetric, p_i: crate::PositIndex, ds: f64) -> Self {
+    // pub fn from_metric(metrics: &Arr4dMetric, p_i: crate::PositIndex, ds: f64) -> Self {
+    pub fn from_metric(metrics: &MetricWDiffs, ds: f64) -> Self {
         let mut result = Self {
             components: [0.; 40],
         };
 
-        // todo: Make sure is aren't at the edges. If so, return etc.
-
-        // todo: DO you want to do a midpoint, or just one-side? It's a first-deriv, so you
-        // todo could pick either.
-
-        // todo: YOu need to divide by d_metric... whatever sort of quantity that is.
-
-        let g_this = &metrics[p_i.t][p_i.x][p_i.y][p_i.z];
-
-        let g_t_prev = &metrics[p_i.t - 1][p_i.x][p_i.y][p_i.z];
-        let g_t_next = &metrics[p_i.t - 1][p_i.x][p_i.y][p_i.z];
-        let g_x_prev = &metrics[p_i.t][p_i.x - 1][p_i.y][p_i.z];
-        let g_x_next = &metrics[p_i.t][p_i.x + 1][p_i.y][p_i.z];
-        let g_y_prev = &metrics[p_i.t][p_i.x][p_i.y - 1][p_i.z];
-        let g_y_next = &metrics[p_i.t][p_i.x][p_i.y + 1][p_i.z];
-        let g_z_prev = &metrics[p_i.t][p_i.x][p_i.y][p_i.z - 1];
-        let g_z_next = &metrics[p_i.t][p_i.x][p_i.y][p_i.z + 1];
-
-        let mut metrics = HashMap::new();
-        metrics.insert((C::T, PrevNext::P), g_t_prev);
-        metrics.insert((C::T, PrevNext::N), g_t_next);
-        metrics.insert((C::X, PrevNext::P), g_x_prev);
-        metrics.insert((C::X, PrevNext::N), g_x_next);
-        metrics.insert((C::Y, PrevNext::P), g_y_prev);
-        metrics.insert((C::Y, PrevNext::N), g_y_next);
-        metrics.insert((C::Z, PrevNext::P), g_z_prev);
-        metrics.insert((C::Z, PrevNext::N), g_z_next);
+        // todo: Instead of a Hashmap, you could use Val etc methods on MetricWDiffs, but this is fine too.
+        // todo: Actually, you should; this HM is redundant.
+        let mut metric_map = HashMap::new();
+        metric_map.insert((C::T, PrevNext::P), &metrics.t_prev);
+        metric_map.insert((C::T, PrevNext::N), &metrics.t_next);
+        metric_map.insert((C::X, PrevNext::P), &metrics.x_prev);
+        metric_map.insert((C::X, PrevNext::N), &metrics.x_next);
+        metric_map.insert((C::Y, PrevNext::P), &metrics.y_prev);
+        metric_map.insert((C::Y, PrevNext::N), &metrics.y_next);
+        metric_map.insert((C::Z, PrevNext::P), &metrics.z_prev);
+        metric_map.insert((C::Z, PrevNext::N), &metrics.z_next);
 
         // todo: You need a way to get metric's upper config by Comp label!! You're currently using
         // todo the lower-rep version!
@@ -119,7 +106,7 @@ impl Christoffel {
                     }
 
                     *result.val_mut(*λ, *μ, *ν) +=
-                        Self::calc_component(*λ, *μ, *ν, &g_this, &metrics, ds);
+                        Self::calc_component(*λ, *μ, *ν, &metrics.on_pt, &metric_map, ds);
 
                     complete_lower_combos.push((μ, ν));
                 }
