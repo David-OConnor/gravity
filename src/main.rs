@@ -20,7 +20,7 @@ use std::f64::consts::TAU;
 
 mod christoffel;
 mod metric;
-mod reimann;
+// mod reimann; // todo: Put back when ready
 mod render;
 mod tensors;
 mod ui;
@@ -28,7 +28,8 @@ mod util;
 
 use crate::{
     christoffel::Christoffel,
-    tensors::{MetricTensor, Vec4, Vec4Minkowski},
+    metric::{MetricTensor, MetricWDiffs},
+    tensors::{Vec4, Vec4Minkowski},
 };
 
 // Gravitational constant.
@@ -64,7 +65,7 @@ pub struct State {
     pub schwarzchild_rad: f64,
     pub particles: Vec<Particle>,
     // pub field_metric: Arr4dMetric,
-    pub field_metric: tensors::MetricWDiffs,
+    pub field_metric: metric::MetricWDiffs,
     pub field_christoffel: Arr4dChristoffel,
     pub grid_posits: Arr4dVec,
     pub grid_n: usize,
@@ -137,16 +138,18 @@ pub fn swarzchild_interval(r_s: f64, r: f64, dr: f64, dθ: f64, dφ: f64) -> f64
 }
 
 /// Update our grid positions. Run this when we change grid bounds or spacing.
-pub fn update_grid_posits(grid_posits: &mut Arr3dVec, grid_min: f64, grid_max: f64, n: usize) {
+pub fn update_grid_posits(grid_posits: &mut Arr4dVec, grid_min: f64, grid_max: f64, n: usize) {
     let grid_lin = util::linspace((grid_min, grid_max), n);
 
     // Set up a grid with values that increase in distance the farther we are from the center.
     let mut grid_1d = vec![0.; n];
 
-    for (i, x) in grid_lin.iter().enumerate() {
-        for (j, y) in grid_lin.iter().enumerate() {
-            for (k, z) in grid_lin.iter().enumerate() {
-                grid_posits[i][j][k] = Vec3::new(*x, *y, *z);
+    for (i, t) in grid_lin.iter().enumerate() {
+        for (j, x) in grid_lin.iter().enumerate() {
+            for (k, y) in grid_lin.iter().enumerate() {
+                for (l, z) in grid_lin.iter().enumerate() {
+                    grid_posits[i][j][k][l] = Vec4Minkowski::new(*t, *x, *y, *z);
+                }
             }
         }
     }
@@ -154,17 +157,17 @@ pub fn update_grid_posits(grid_posits: &mut Arr3dVec, grid_min: f64, grid_max: f
 
 /// Helper fn for generating neighboring points for the Schwarzchild metric
 /// This is a conversion from cartesian to spherical coordinates.
-pub fn θfind_schwarz_params(posit_sample: Vec4Minkowski, posit_mass: Vec3) -> (f64, f64) {
+pub fn find_schwarz_params(posit_sample: Vec4Minkowski, posit_mass: Vec3) -> (f64, f64) {
     let diff = Vec3::new(
-        posit_sample.as_upper().x - posit_mass.x,
-        posit_sample.as_upper().y - posit_mass.y,
-        posit_sample.as_upper().z - posit_mass.zx,
+        posit_sample.x() - posit_mass.x,
+        posit_sample.y() - posit_mass.y,
+        posit_sample.z() - posit_mass.x,
     );
 
     let r = diff.magnitude();
 
     // todo: phi or theta??
-    let θ = (diff.x.powi(2) + diff.y.powi(2)).sqrt().atan2(posit.z);
+    let θ = (diff.x.powi(2) + diff.y.powi(2)).sqrt().atan2(diff.z);
 
     (r, θ)
 }
@@ -175,7 +178,7 @@ fn main() {
 
     let grid_n = 30;
 
-    let mut field_metric = tensors::MetricWDiffs::new(grid_n);
+    let mut field_metric = metric::MetricGridWDiffs::new(grid_n);
     let mut field_christoffel = new_data_christoffel(grid_n);
 
     let mut grid_posits = new_data_vec(grid_n);
@@ -195,57 +198,25 @@ fn main() {
                     let posit = grid_posits[i][j][k][l];
 
                     // todo: DRY with code in metrics; consolidate.
-                    let posit_t_prev = Vec4Minkowski::new(
-                        posit.t - H,
-                        posit_sample.x,
-                        posit_sample.y,
-                        posit_sample.z,
-                    );
-                    let posit_t_next = Vec4Minkowski::new(
-                        posit.t + H,
-                        posit_sample.x,
-                        posit_sample.y,
-                        posit_sample.z,
-                    );
+                    let posit_t_prev =
+                        Vec4Minkowski::new(posit.t() - H, posit.x(), posit.y(), posit.z());
+                    let posit_t_next =
+                        Vec4Minkowski::new(posit.t() + H, posit.x(), posit.y(), posit.z());
 
-                    let posit_x_prev = Vec4Minkowski::new(
-                        posit.t,
-                        posit_sample.x - H,
-                        posit_sample.y,
-                        posit_sample.z,
-                    );
-                    let posit_x_next = Vec4Minkowski::new(
-                        posit.t,
-                        posit_sample.x + H,
-                        posit_sample.y,
-                        posit_sample.z,
-                    );
+                    let posit_x_prev =
+                        Vec4Minkowski::new(posit.t(), posit.x() - H, posit.y(), posit.z());
+                    let posit_x_next =
+                        Vec4Minkowski::new(posit.t(), posit.x() + H, posit.y(), posit.z());
 
-                    let posit_y_prev = Vec4Minkowski::new(
-                        posit.t,
-                        posit_sample.x,
-                        posit_sample.y - H,
-                        posit_sample.z,
-                    );
-                    let posit_y_next = Vec4Minkowski::new(
-                        posit.t,
-                        posit_sample.x,
-                        posit_sample.y + H,
-                        posit_sample.z,
-                    );
+                    let posit_y_prev =
+                        Vec4Minkowski::new(posit.t(), posit.x(), posit.y() - H, posit.z());
+                    let posit_y_next =
+                        Vec4Minkowski::new(posit.t(), posit.x(), posit.y() + H, posit.z());
 
-                    let posit_z_prev = Vec4Minkowski::new(
-                        posit.t,
-                        posit_sample.x,
-                        posit_sample.y,
-                        posit_sample.z - H,
-                    );
-                    let posit_z_next = Vec4Minkowski::new(
-                        posit.t,
-                        posit_sample.x,
-                        posit_sample.y,
-                        posit_sample.z + H,
-                    );
+                    let posit_z_prev =
+                        Vec4Minkowski::new(posit.t(), posit.x(), posit.y(), posit.z() - H);
+                    let posit_z_next =
+                        Vec4Minkowski::new(posit.t(), posit.x(), posit.y(), posit.z() + H);
 
                     let (r_on_pt, θ_on_pt) = find_schwarz_params(posit, schwarzchild_coords);
 

@@ -16,7 +16,7 @@ use crate::{
 pub const COMPS: [V4Component; 4] = [
     V4Component::T,
     V4Component::X,
-    V4Component::y,
+    V4Component::Y,
     V4Component::Z,
 ];
 
@@ -179,10 +179,26 @@ impl Vec4Minkowski {
     // }
 
     pub fn mag_sq(&self) -> f64 {
-        -(C_SQ * self.t.powi(2)) + self.x.powi(2) + self.y.powi(2) + self.z.powi(2)
+        -(C_SQ * self.t().powi(2)) + self.x().powi(2) + self.y().powi(2) + self.z().powi(2)
     }
 
     // todo: Sort out how you get covariant config.
+
+    pub fn t(&self) -> f64 {
+        self.components_u[0]
+    }
+
+    pub fn x(&self) -> f64 {
+        self.components_u[1]
+    }
+
+    pub fn y(&self) -> f64 {
+        self.components_u[2]
+    }
+
+    pub fn z(&self) -> f64 {
+        self.components_u[3]
+    }
 
     // pub fn val(&self, comp: V4Component, config: Tensor1Config) -> f64 {
     pub fn val(&self, comp: V4Component) -> f64 {
@@ -330,7 +346,7 @@ impl Worldline {
             accel: Vec4Minkowski::default(),
         });
 
-        for _ in num_events {
+        for _ in 0..num_events {
             let mut metrics = MetricWDiffs::new_schwarz(M, posit_sample, posit_mass);
             let Γ = Christoffel::from_metric(&metrics, dτ);
 
@@ -377,7 +393,7 @@ impl Worldline {
         });
 
         // todo: Much of this function is in common with your analytic-based SCHWarz one.
-        for _ in num_events {
+        for _ in 0..num_events {
             // let mut metrics = MetricWDiffs::from_grid();
 
             // todo: INterpolate

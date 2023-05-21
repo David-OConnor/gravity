@@ -1,13 +1,10 @@
 //! The Metric tensor and related data.
 
 use crate::{
-    tensors::{
-        MetricTensor, PositIndex, Tensor2Config, V4Component, Vec4, Vec4Minkowski, C, COMPS,
-    },
+    tensors::{PositIndex, PrevNext, Tensor2Config, V4Component, Vec4, Vec4Minkowski, C, COMPS},
     Arr4dMetric, Arr4dReal, C_SQ, G, H,
 };
 
-use crate::tensors::PrevNext;
 use lin_alg2::f64::{Mat4, Vec3};
 
 /// https://github.com/einsteinpy/einsteinpy/blob/main/src/einsteinpy/metric/base_metric.py
@@ -109,7 +106,16 @@ impl MetricTensor {
 
         let mu = matrix_ll.inverse().unwrap();
         self.components_uu = [
-            mu[0], mu[5], mu[10], mu[15], mu[1], mu[6], mu[11], mu[2], mu[7], mu[3],
+            mu.data[0],
+            mu.data[5],
+            mu.data[10],
+            mu.data[15],
+            mu.data[1],
+            mu.data[6],
+            mu.data[11],
+            mu.data[2],
+            mu.data[7],
+            mu.data[3],
         ];
     }
 
@@ -131,8 +137,8 @@ impl MetricTensor {
 
     /// Take the inner product of 2 vectors, using this metric; V·V = g_{μν} V^μ V^ν
     pub fn inner_product(&self, vec_a: Vec4Minkowski, vec_b: Vec4Minkowski) -> f64 {
-        let a = vec_a.as_upper();
-        let b = vec_b.as_upper();
+        // let a = vec_a.as_upper();
+        // let b = vec_b.as_upper();
 
         let mut result = 0.;
 
@@ -150,7 +156,7 @@ impl MetricTensor {
     /// the internal matrix is in lower-lower representation.
     pub fn val(&self, μ: V4Component, ν: V4Component, config: Tensor2Config) -> f64 {
         let g = &match config {
-            Tensor2Config::Uu => &self.matrix_uu,
+            Tensor2Config::Uu => &self.components_uu,
             Tensor2Config::Ul => {
                 // let a = ETA_MINKOWSKI * self.matrix_ll;
                 unimplemented!()
@@ -158,9 +164,8 @@ impl MetricTensor {
             Tensor2Config::Lu => {
                 unimplemented!()
             }
-            Tensor2Config::Ll => &self.matrix_ll,
-        }
-        .data;
+            Tensor2Config::Ll => &self.components_ll,
+        };
 
         // 0 4 7 9
         // 4 1 5 8
@@ -202,7 +207,7 @@ impl MetricTensor {
     /// todo: DRY with `.val`
     pub fn val_mut(&mut self, μ: V4Component, ν: V4Component, config: Tensor2Config) -> &mut f64 {
         let g = &mut match config {
-            Tensor2Config::Uu => &mut self.matrix_uu.data,
+            Tensor2Config::Uu => &mut self.components_uu,
             Tensor2Config::Ul => {
                 // let a = ETA_MINKOWSKI * self.matrix_ll;
                 unimplemented!()
@@ -210,7 +215,7 @@ impl MetricTensor {
             Tensor2Config::Lu => {
                 unimplemented!()
             }
-            Tensor2Config::Ll => &mut self.matrix_ll.data,
+            Tensor2Config::Ll => &mut self.components_ll,
         };
 
         &mut match μ {
@@ -262,9 +267,9 @@ pub struct MetricGridWDiffs {
     pub z_next: Arr4dMetric,
 }
 
-impl MetricWDiffs {
+impl MetricWDiffsGrid {
     pub fn new(grid_n: usize) -> Self {
-        let data = gravity::new_data_metric(grid_n);
+        let data = crate::new_data_metric(grid_n);
 
         Self {
             on_pt: data.clone(),
@@ -325,25 +330,57 @@ impl MetricWDiffs {
 
     /// todo: θ or phi?
     pub fn new_schwarz(M: f64, posit_sample: Vec4Minkowski, posit_mass: Vec3) -> Self {
-        let posit_t_prev =
-            Vec4Minkowski::new(posit.t - H, posit_sample.x, posit_sample.y, posit_sample.z);
-        let posit_t_next =
-            Vec4Minkowski::new(posit.t + H, posit_sample.x, posit_sample.y, posit_sample.z);
+        let posit_t_prev = Vec4Minkowski::new(
+            posit.t - H,
+            posit_sample.x(),
+            posit_sample.y(),
+            posit_sample.z(),
+        );
+        let posit_t_next = Vec4Minkowski::new(
+            posit.t + H,
+            posit_sample.x(),
+            posit_sample.y(),
+            posit_sample.z(),
+        );
 
-        let posit_x_prev =
-            Vec4Minkowski::new(posit.t, posit_sample.x - H, posit_sample.y, posit_sample.z);
-        let posit_x_next =
-            Vec4Minkowski::new(posit.t, posit_sample.x + H, posit_sample.y, posit_sample.z);
+        let posit_x_prev = Vec4Minkowski::new(
+            posit.t,
+            posit_sample.x() - H,
+            posit_sample.y(),
+            posit_sample.z(),
+        );
+        let posit_x_next = Vec4Minkowski::new(
+            posit.t,
+            posit_sample.x() + H,
+            posit_sample.y(),
+            posit_sample.z(),
+        );
 
-        let posit_y_prev =
-            Vec4Minkowski::new(posit.t, posit_sample.x, posit_sample.y - H, posit_sample.z);
-        let posit_y_next =
-            Vec4Minkowski::new(posit.t, posit_sample.x, posit_sample.y + H, posit_sample.z);
+        let posit_y_prev = Vec4Minkowski::new(
+            posit.t,
+            posit_sample.x(),
+            posit_sample.y() - H,
+            posit_sample.z(),
+        );
+        let posit_y_next = Vec4Minkowski::new(
+            posit.t,
+            posit_sample.x(),
+            posit_sample.y() + H,
+            posit_sample.z(),
+        );
 
-        let posit_z_prev =
-            Vec4Minkowski::new(posit.t, posit_sample.x, posit_sample.y, posit_sample.z - H);
-        let posit_z_next =
-            Vec4Minkowski::new(posit.t, posit_sample.x, posit_sample.y, posit_sample.z + H);
+        let posit_z_prev = Vec4Minkowski::new(
+            posit.t,
+            posit_sample.x(),
+            posit_sample.y(),
+            posit_sample.z() - H,
+        );
+        let posit_z_next = Vec4Minkowski::new(
+            posit.t,
+            posit_sample.x(),
+            posit_sample.y(),
+            posit_sample.z() + H,
+        );
 
         //todo: theta or phi?
         let (r_on_pt, θ_on_pt) = crate::find_schwarz_params(posit_sample, posit_mass);

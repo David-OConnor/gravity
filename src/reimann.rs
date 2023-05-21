@@ -35,12 +35,12 @@ impl Riemann {
         let factor = 1. / (2. * ds);
 
         for λ in &COMPS {
-            let part_1 = (Γ_diffs.get(&(μ, PrevNext::N)).unwrap().val(ρ, *ν, *σ)
-                - Γ_diffs.get(&(μ, PrevNext::P)).unwrap().val(ρ, *ν, *σ))
+            let part_1 = (Γ_diffs.get(&(μ, PrevNext::N)).unwrap().val(ρ, ν, σ)
+                - Γ_diffs.get(&(μ, PrevNext::P)).unwrap().val(ρ, ν, σ))
                 * factor;
 
-            let part_2 = (Γ_diffs.get(&(ν, PrevNext::N)).unwrap().val(ρ, *μ, *σ)
-                - Γ_diffs.get(&(ν, PrevNext::P)).unwrap().val(ρ, *μ, *σ))
+            let part_2 = (Γ_diffs.get(&(ν, PrevNext::N)).unwrap().val(ρ, μ, σ)
+                - Γ_diffs.get(&(ν, PrevNext::P)).unwrap().val(ρ, μ, σ))
                 * factor;
 
             let part_3 = Γ.val(ρ, μ, λ) * Γ.val(λ, ν, σ) * factor;
