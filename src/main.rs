@@ -22,6 +22,7 @@ mod christoffel;
 mod metric;
 // mod reimann; // todo: Put back when ready
 mod render;
+mod schwarzchild;
 mod tensors;
 mod ui;
 mod util;
@@ -160,23 +161,6 @@ pub fn update_grid_posits(grid_posits: &mut Arr4dVec4, grid_min: f64, grid_max: 
     }
 }
 
-/// Helper fn for generating neighboring points for the Schwarzchild metric
-/// This is a conversion from cartesian to spherical coordinates.
-pub fn find_schwarz_params(posit_sample: Vec4Minkowski, posit_mass: Vec3) -> (f64, f64) {
-    let diff = Vec3::new(
-        posit_sample.x() - posit_mass.x,
-        posit_sample.y() - posit_mass.y,
-        posit_sample.z() - posit_mass.x,
-    );
-
-    let r = diff.magnitude();
-
-    // todo: phi or theta??
-    let θ = (diff.x.powi(2) + diff.y.powi(2)).sqrt().atan2(diff.z);
-
-    (r, θ)
-}
-
 fn main() {
     let schwarzchild_coords = Vec3::new_zero();
     let schwarzchild_rad = 2.;
@@ -223,47 +207,47 @@ fn main() {
                     let posit_z_next =
                         Vec4Minkowski::new(posit.t(), posit.x(), posit.y(), posit.z() + H);
 
-                    let (r_on_pt, θ_on_pt) = find_schwarz_params(posit, schwarzchild_coords);
+                    let (r_on_pt, θ_on_pt) = schwarzchild::find_params(posit, schwarzchild_coords);
 
                     let (r_t_prev, θ_t_prev) =
-                        find_schwarz_params(posit_t_prev, schwarzchild_coords);
+                        schwarzchild::find_params(posit_t_prev, schwarzchild_coords);
                     let (r_t_next, θ_t_next) =
-                        find_schwarz_params(posit_t_next, schwarzchild_coords);
+                        schwarzchild::find_params(posit_t_next, schwarzchild_coords);
 
                     let (r_x_prev, θ_x_prev) =
-                        find_schwarz_params(posit_x_prev, schwarzchild_coords);
+                        schwarzchild::find_params(posit_x_prev, schwarzchild_coords);
                     let (r_x_next, θ_x_next) =
-                        find_schwarz_params(posit_x_next, schwarzchild_coords);
+                        schwarzchild::find_params(posit_x_next, schwarzchild_coords);
 
                     let (r_y_prev, θ_y_prev) =
-                        find_schwarz_params(posit_y_prev, schwarzchild_coords);
+                        schwarzchild::find_params(posit_y_prev, schwarzchild_coords);
                     let (r_y_next, θ_y_next) =
-                        find_schwarz_params(posit_y_next, schwarzchild_coords);
+                        schwarzchild::find_params(posit_y_next, schwarzchild_coords);
 
                     let (r_z_prev, θ_z_prev) =
-                        find_schwarz_params(posit_z_prev, schwarzchild_coords);
+                        schwarzchild::find_params(posit_z_prev, schwarzchild_coords);
                     let (r_z_next, θ_z_next) =
-                        find_schwarz_params(posit_z_next, schwarzchild_coords);
+                        schwarzchild::find_params(posit_z_next, schwarzchild_coords);
 
                     field_metric.on_pt[i][j][k][l] =
-                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_on_pt, θ_on_pt);
+                        MetricTensor::new_schwarz(schwarzchild_rad, r_on_pt, θ_on_pt);
 
                     field_metric.t_prev[i][j][k][l] =
-                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_t_prev, θ_t_prev);
+                        MetricTensor::new_schwarz(schwarzchild_rad, r_t_prev, θ_t_prev);
                     field_metric.t_next[i][j][k][l] =
-                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_t_next, θ_t_next);
+                        MetricTensor::new_schwarz(schwarzchild_rad, r_t_next, θ_t_next);
                     field_metric.x_prev[i][j][k][l] =
-                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_x_prev, θ_x_prev);
+                        MetricTensor::new_schwarz(schwarzchild_rad, r_x_prev, θ_x_prev);
                     field_metric.x_next[i][j][k][l] =
-                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_x_next, θ_x_next);
+                        MetricTensor::new_schwarz(schwarzchild_rad, r_x_next, θ_x_next);
                     field_metric.y_prev[i][j][k][l] =
-                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_y_prev, θ_y_prev);
+                        MetricTensor::new_schwarz(schwarzchild_rad, r_y_prev, θ_y_prev);
                     field_metric.y_next[i][j][k][l] =
-                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_y_next, θ_y_next);
+                        MetricTensor::new_schwarz(schwarzchild_rad, r_y_next, θ_y_next);
                     field_metric.z_prev[i][j][k][l] =
-                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_z_prev, θ_z_prev);
+                        MetricTensor::new_schwarz(schwarzchild_rad, r_z_prev, θ_z_prev);
                     field_metric.z_next[i][j][k][l] =
-                        MetricTensor::new_schwarzchild(schwarzchild_rad, r_z_next, θ_z_next);
+                        MetricTensor::new_schwarz(schwarzchild_rad, r_z_next, θ_z_next);
                 }
             }
         }
@@ -285,14 +269,26 @@ fn main() {
     let schwarz_mass = (Vec3::new_zero(), 1.);
 
     let mut worldlines = Vec::new();
-    let num_events = 100;
+    let num_events = 1_000;
     let dτ = 1.; // todo?
 
     for (posit_init, v_init) in &[
         // todo: What should initial time component be for v?
         (
+            Vec4Minkowski::new(0., 3., 0., 0.),
+            Vec4Minkowski::new(0., 0.01, 0., 0.),
+        ),
+        (
             Vec4Minkowski::new(0., 10., 0., 0.),
-            Vec4Minkowski::new(0.1, 0., 0., 0.),
+            Vec4Minkowski::new(0., 0., 0.5, 0.),
+        ),
+        (
+            Vec4Minkowski::new(0., 15., 0., 0.),
+            Vec4Minkowski::new(0.001, 0., 0., 0.),
+        ),
+        (
+            Vec4Minkowski::new(0., 20., 0., 0.),
+            Vec4Minkowski::new(0., 0., 0., 0.),
         ),
     ] {
         worldlines.push(Worldline::new_geodesic_schwarz(

@@ -1,7 +1,5 @@
 //! Separated from tensors since it's so verbose. (And not a tensor)
 
-use std::collections::HashMap;
-
 use crate::{
     metric::{MetricTensor, MetricWDiffs},
     tensors::{PositIndex, PrevNext, Tensor2Config, V4Component, Vec4, Vec4Minkowski, C, COMPS},
@@ -31,14 +29,7 @@ impl Default for Christoffel {
 impl Christoffel {
     /// Helper function to calculate a single component. Uses the index convention shown in `from_metric`'s
     /// function description.
-    fn calc_component(
-        λ: C,
-        μ: C,
-        ν: C,
-        g_this: &MetricTensor,
-        g_diffs: &HashMap<(C, PrevNext), &MetricTensor>,
-        ds: f64,
-    ) -> f64 {
+    fn calc_component(λ: C, μ: C, ν: C, metrics: &MetricWDiffs, ds: f64) -> f64 {
         let mut result = 0.;
 
         // todo: YOu need to divide by d_metric... whatever sort of quantity that is.
@@ -48,16 +39,19 @@ impl Christoffel {
         let u = Tensor2Config::Uu;
 
         for σ in &COMPS {
-            result += g_this.val(λ, *σ, u)
-                * ((g_diffs.get(&(μ, PrevNext::N)).unwrap().val(ν, *σ, u)
-                    - g_diffs.get(&(μ, PrevNext::P)).unwrap().val(ν, *σ, u))
-                    * factor
-                    + (g_diffs.get(&(ν, PrevNext::N)).unwrap().val(μ, *σ, u)
-                        - g_diffs.get(&(ν, PrevNext::P)).unwrap().val(μ, *σ, u))
-                        * factor
-                    - (g_diffs.get(&(*σ, PrevNext::N)).unwrap().val(μ, ν, u)
-                        - g_diffs.get(&(*σ, PrevNext::P)).unwrap().val(μ, ν, u))
-                        * factor)
+            result += metrics.val(C::T, PrevNext::OnPt).val(λ, *σ, u);
+
+            result += (metrics.val(μ, PrevNext::Next).val(ν, *σ, u)
+                - metrics.val(μ, PrevNext::Prev).val(ν, *σ, u))
+                * factor;
+
+            result += (metrics.val(ν, PrevNext::Next).val(μ, *σ, u)
+                - metrics.val(ν, PrevNext::Prev).val(μ, *σ, u))
+                * factor;
+
+            result -= (metrics.val(*σ, PrevNext::Next).val(μ, ν, u)
+                - metrics.val(*σ, PrevNext::Prev).val(μ, ν, u))
+                * factor;
         }
 
         result
@@ -74,31 +68,14 @@ impl Christoffel {
             components: [0.; 40],
         };
 
-        // todo: Instead of a Hashmap, you could use Val etc methods on MetricWDiffs, but this is fine too.
-        // todo: Actually, you should; this HM is redundant.
-        let mut metric_map = HashMap::new();
-        metric_map.insert((C::T, PrevNext::P), &metrics.t_prev);
-        metric_map.insert((C::T, PrevNext::N), &metrics.t_next);
-        metric_map.insert((C::X, PrevNext::P), &metrics.x_prev);
-        metric_map.insert((C::X, PrevNext::N), &metrics.x_next);
-        metric_map.insert((C::Y, PrevNext::P), &metrics.y_prev);
-        metric_map.insert((C::Y, PrevNext::N), &metrics.y_next);
-        metric_map.insert((C::Z, PrevNext::P), &metrics.z_prev);
-        metric_map.insert((C::Z, PrevNext::N), &metrics.z_next);
-
-        // todo: You need a way to get metric's upper config by Comp label!! You're currently using
-        // todo the lower-rep version!
-
-        let comps = [C::T, C::X, C::Y, C::Z];
-
-        for λ in &comps {
+        for λ in &COMPS {
             // We use this to skip degenerate values, since the lower indices are interchangeable.
             // Let's say we tried μ = t, ν = x
             // Then when this comes up: μ = x, ν = t, we skip it.
             let mut complete_lower_combos = Vec::new();
 
-            for μ in &comps {
-                for ν in &comps {
+            for μ in &COMPS {
+                for ν in &COMPS {
                     // Todo: Is there a more elegant way to do this?
                     let mut degen = false;
                     for complete in &complete_lower_combos {
@@ -112,8 +89,7 @@ impl Christoffel {
                         continue;
                     }
 
-                    *result.val_mut(*λ, *μ, *ν) +=
-                        Self::calc_component(*λ, *μ, *ν, &metrics.on_pt, &metric_map, ds);
+                    *result.val_mut(*λ, *μ, *ν) += Self::calc_component(*λ, *μ, *ν, metrics, ds);
 
                     complete_lower_combos.push((μ, ν));
                 }

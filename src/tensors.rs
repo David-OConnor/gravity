@@ -441,6 +441,7 @@ impl Worldline {
 /// We use this for indexing into metric tensor collections used in derivatives.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PrevNext {
-    P,
-    N,
+    OnPt,
+    Prev,
+    Next,
 }

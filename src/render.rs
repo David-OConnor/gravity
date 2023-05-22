@@ -27,7 +27,7 @@ const BACKGROUND_COLOR: Color = (0.5, 0.5, 0.5);
 const SCHWARZ_SPHERE_SIZE: f32 = 0.5;
 const GEODESIC_SPHERE_SIZE: f32 = 0.1;
 
-const COLOR_MASS: Color = (1., 0., 0.);
+const COLOR_MASS: Color = (0., 0., 0.);
 
 const WORLDLINE_COLORS: [Color; 10] = [
     (0., 0., 1.),

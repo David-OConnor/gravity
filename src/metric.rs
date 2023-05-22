@@ -1,6 +1,7 @@
 //! The Metric tensor and related data.
 
 use crate::{
+    schwarzchild,
     tensors::{PositIndex, PrevNext, Tensor2Config, V4Component, Vec4, Vec4Minkowski, C, COMPS},
     Arr4dMetric, Arr4dReal, C_SQ, G, H,
 };
@@ -73,8 +74,7 @@ impl MetricTensor {
 
     /// Create a new metric tensor given Scharzchild gemoetry, ie a given distance from a
     /// given black hole (or spherical object in general?) with Scharzchild radius r_s.
-    pub fn new_schwarzchild(M: f64, r: f64, θ: f64) -> Self {
-        // todo: phi instead of theta?
+    pub fn new_schwarz(M: f64, r: f64, θ: f64) -> Self {
         let mut result = Self::default();
 
         let r_s = 2. * M * G / C_SQ;
@@ -328,7 +328,6 @@ impl MetricWDiffs {
         }
     }
 
-    /// todo: θ or phi?
     pub fn new_schwarz(M: f64, posit_sample: Vec4Minkowski, posit_mass: Vec3) -> Self {
         let posit_t_prev = Vec4Minkowski::new(
             posit_sample.t() - H,
@@ -383,46 +382,45 @@ impl MetricWDiffs {
         );
 
         //todo: theta or phi?
-        let (r_on_pt, θ_on_pt) = crate::find_schwarz_params(posit_sample, posit_mass);
+        let (r_on_pt, θ_on_pt) = schwarzchild::find_params(posit_sample, posit_mass);
 
-        let (r_t_prev, θ_t_prev) = crate::find_schwarz_params(posit_t_prev, posit_mass);
-        let (r_t_next, θ_t_next) = crate::find_schwarz_params(posit_t_next, posit_mass);
-        let (r_x_prev, θ_x_prev) = crate::find_schwarz_params(posit_x_prev, posit_mass);
-        let (r_x_next, θ_x_next) = crate::find_schwarz_params(posit_x_next, posit_mass);
-        let (r_y_prev, θ_y_prev) = crate::find_schwarz_params(posit_y_prev, posit_mass);
-        let (r_y_next, θ_y_next) = crate::find_schwarz_params(posit_y_next, posit_mass);
-        let (r_z_prev, θ_z_prev) = crate::find_schwarz_params(posit_z_prev, posit_mass);
-        let (r_z_next, θ_z_next) = crate::find_schwarz_params(posit_z_next, posit_mass);
+        let (r_t_prev, θ_t_prev) = schwarzchild::find_params(posit_t_prev, posit_mass);
+        let (r_t_next, θ_t_next) = schwarzchild::find_params(posit_t_next, posit_mass);
+        let (r_x_prev, θ_x_prev) = schwarzchild::find_params(posit_x_prev, posit_mass);
+        let (r_x_next, θ_x_next) = schwarzchild::find_params(posit_x_next, posit_mass);
+        let (r_y_prev, θ_y_prev) = schwarzchild::find_params(posit_y_prev, posit_mass);
+        let (r_y_next, θ_y_next) = schwarzchild::find_params(posit_y_next, posit_mass);
+        let (r_z_prev, θ_z_prev) = schwarzchild::find_params(posit_z_prev, posit_mass);
+        let (r_z_next, θ_z_next) = schwarzchild::find_params(posit_z_next, posit_mass);
 
         Self {
-            on_pt: MetricTensor::new_schwarzchild(M, r_on_pt, θ_on_pt),
-            t_prev: MetricTensor::new_schwarzchild(M, r_t_prev, θ_t_prev),
-            t_next: MetricTensor::new_schwarzchild(M, r_t_next, θ_t_next),
-            x_prev: MetricTensor::new_schwarzchild(M, r_x_prev, θ_x_prev),
-            x_next: MetricTensor::new_schwarzchild(M, r_x_next, θ_x_next),
-            y_prev: MetricTensor::new_schwarzchild(M, r_y_prev, θ_y_prev),
-            y_next: MetricTensor::new_schwarzchild(M, r_y_next, θ_y_next),
-            z_prev: MetricTensor::new_schwarzchild(M, r_z_prev, θ_z_prev),
-            z_next: MetricTensor::new_schwarzchild(M, r_z_next, θ_z_next),
+            on_pt: MetricTensor::new_schwarz(M, r_on_pt, θ_on_pt),
+            t_prev: MetricTensor::new_schwarz(M, r_t_prev, θ_t_prev),
+            t_next: MetricTensor::new_schwarz(M, r_t_next, θ_t_next),
+            x_prev: MetricTensor::new_schwarz(M, r_x_prev, θ_x_prev),
+            x_next: MetricTensor::new_schwarz(M, r_x_next, θ_x_next),
+            y_prev: MetricTensor::new_schwarz(M, r_y_prev, θ_y_prev),
+            y_next: MetricTensor::new_schwarz(M, r_y_next, θ_y_next),
+            z_prev: MetricTensor::new_schwarz(M, r_z_prev, θ_z_prev),
+            z_next: MetricTensor::new_schwarz(M, r_z_next, θ_z_next),
         }
     }
 
-    // pub fn val(comp: V4Component, prev_next: PrevNext) -> Arr4dMetric {
-    //     match comp {
-    //         C::T => {
-    //             match prev_next {
-    //                 PrevNext::Prev => self,
-    //             }
-    //         }
-    //         C::X => {
-    //
-    //         }
-    //         C::Y => {
-    //
-    //         }
-    //         C::Z => {
-    //
-    //         }
-    //     }
-    // }
+    pub fn val(&self, comp: V4Component, prev_next: PrevNext) -> &MetricTensor {
+        match prev_next {
+            PrevNext::OnPt => &self.on_pt,
+            PrevNext::Prev => match comp {
+                C::T => &self.t_prev,
+                C::X => &self.x_prev,
+                C::Y => &self.y_prev,
+                C::Z => &self.z_prev,
+            },
+            PrevNext::Next => match comp {
+                C::T => &self.t_next,
+                C::X => &self.x_next,
+                C::Y => &self.y_next,
+                C::Z => &self.z_next,
+            },
+        }
+    }
 }
