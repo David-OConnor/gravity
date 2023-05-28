@@ -39,6 +39,7 @@ impl Christoffel {
         let u = Tensor2Config::Uu;
 
         for σ in &COMPS {
+            // C::T is a dummy val here.
             result += metrics.val(C::T, PrevNext::OnPt).val(λ, *σ, u);
 
             result += (metrics.val(μ, PrevNext::Next).val(ν, *σ, u)
@@ -353,4 +354,17 @@ impl Christoffel {
             },
         }
     }
+}
+
+#[derive(Clone, Default)]
+pub struct ChristoffelWDiffs {
+    pub on_pt: Christoffel,
+    pub t_prev: Christoffel,
+    pub t_next: Christoffel,
+    pub x_prev: Christoffel,
+    pub x_next: Christoffel,
+    pub y_prev: Christoffel,
+    pub y_next: Christoffel,
+    pub z_prev: Christoffel,
+    pub z_next: Christoffel,
 }

@@ -15,13 +15,16 @@ use lin_alg2::f64::{Mat4, Vec3};
 /// See the accepted answer here for a nice explanation: https://math.stackexchange.com/questions/1410793/matrix-representations-of-tensors
 #[derive(Clone)]
 pub struct MetricTensor {
-    /// These component identities are along diagonals; first the top left-bottom right diagonal.
-    /// 0 4 7 9
-    /// 4 1 5 8
-    /// 7 5 2 6
-    /// 9 8 6 3
-    components_ll: [f64; 10],
-    components_uu: [f64; 10],
+    // /// These component identities are along diagonals; first the top left-bottom right diagonal.
+    // /// 0 4 7 9
+    // /// 4 1 5 8
+    // /// 7 5 2 6
+    // /// 9 8 6 3
+    // components_ll: [f64; 10],
+    // components_uu: [f64; 10],
+    // todo: It seems our symmetric-metric setup was perhaps incorrect in teh general case.
+    pub components_ll: [f64; 16],
+    pub components_uu: [f64; 16],
     // matrix_ll: Mat4,
     // /// Ie the inverse metric; it's upper config.
     // matrix_uu: Mat4,
@@ -30,8 +33,12 @@ pub struct MetricTensor {
 /// Eg initialization of a metric field
 impl Default for MetricTensor {
     fn default() -> Self {
-        let mut identity = [0.; 10];
-        identity[0..4].copy_from_slice(&[1., 1., 1., 1.]);
+        let mut identity = [0.; 16];
+        // identity[0..4].copy_from_slice(&[1., 1., 1., 1.]);
+        identity[0] = 1.;
+        identity[5] = 1.;
+        identity[10] = 1.;
+        identity[15] = 1.;
 
         Self {
             components_ll: identity.clone(),
@@ -55,16 +62,19 @@ impl MetricTensor {
         *g.val_mut(C::T, C::Y, l) = e_t.dot(e_y); // n = y
         *g.val_mut(C::T, C::Z, l) = e_t.dot(e_z); // n = z
 
-        // For g_{m n}, m = x
+        *g.val_mut(C::X, C::T, l) = e_x.dot(e_t);
         *g.val_mut(C::X, C::X, l) = e_x.dot(e_x);
         *g.val_mut(C::X, C::Y, l) = e_x.dot(e_y);
         *g.val_mut(C::X, C::Z, l) = e_x.dot(e_z);
 
-        // For g_{m n}, m = y
+        *g.val_mut(C::Y, C::T, l) = e_y.dot(e_t);
+        *g.val_mut(C::Y, C::X, l) = e_y.dot(e_x);
         *g.val_mut(C::Y, C::Y, l) = e_y.dot(e_y);
         *g.val_mut(C::Y, C::Z, l) = e_y.dot(e_z);
 
-        // For g_{m n}, m = z
+        *g.val_mut(C::Z, C::T, l) = e_z.dot(e_t);
+        *g.val_mut(C::Z, C::X, l) = e_z.dot(e_x);
+        *g.val_mut(C::Z, C::Y, l) = e_z.dot(e_zy);
         *g.val_mut(C::Z, C::Z, l) = e_z.dot(e_z);
 
         g.generate_inverse();
@@ -96,27 +106,32 @@ impl MetricTensor {
     fn generate_inverse(&mut self) {
         let c = &self.components_ll;
 
-        #[rustfmt::skip]
-            let matrix_ll = Mat4::new([
-            c[0], c[4], c[7], c[9],
-            c[4], c[1], c[2], c[8],
-            c[7], c[5], c[2], c[6],
-            c[9], c[8], c[6], c[3]
-        ]);
+        let matrix_ll = Mat4::new(*c);
+        //
+        // #[rustfmt::skip]
+        //     let matrix_ll = Mat4::new([
+        //     c[0], c[4], c[7], c[9],
+        //     c[4], c[1], c[2], c[8],
+        //     c[7], c[5], c[2], c[6],
+        //     c[9], c[8], c[6], c[3]
+        // ]);
 
         let mu = matrix_ll.inverse().unwrap();
-        self.components_uu = [
-            mu.data[0],
-            mu.data[5],
-            mu.data[10],
-            mu.data[15],
-            mu.data[1],
-            mu.data[6],
-            mu.data[11],
-            mu.data[2],
-            mu.data[7],
-            mu.data[3],
-        ];
+        //     self.components_uu = [
+        //         mu.data[0],
+        //         mu.data[5],
+        //         mu.data[10],
+        //         mu.data[15],
+        //         mu.data[1],
+        //         mu.data[6],
+        //         mu.data[11],
+        //         mu.data[2],
+        //         mu.data[7],
+        //         mu.data[3],
+        //     ];
+        // }
+
+        self.components_uu = mu.data;
     }
 
     // // todo :You need some method of getting by named index *while in a different config*; ie you have an immediate
@@ -175,30 +190,30 @@ impl MetricTensor {
         match μ {
             C::T => match ν {
                 C::T => g[0],
-                C::X => g[4],
-                C::Y => g[7],
-                C::Z => g[9],
+                C::X => g[1],
+                C::Y => g[2],
+                C::Z => g[3],
             },
 
             C::X => match ν {
                 C::T => g[4],
-                C::X => g[1],
-                C::Y => g[5],
-                C::Z => g[8],
+                C::X => g[5],
+                C::Y => g[6],
+                C::Z => g[7],
             },
 
             C::Y => match ν {
-                C::T => g[7],
-                C::X => g[5],
-                C::Y => g[2],
-                C::Z => g[6],
+                C::T => g[8],
+                C::X => g[9],
+                C::Y => g[10],
+                C::Z => g[11],
             },
 
             C::Z => match ν {
-                C::T => g[9],
-                C::X => g[8],
-                C::Y => g[6],
-                C::Z => g[3],
+                C::T => g[12],
+                C::X => g[13],
+                C::Y => g[14],
+                C::Z => g[15],
             },
         }
     }
@@ -221,30 +236,30 @@ impl MetricTensor {
         match μ {
             C::T => match ν {
                 C::T => &mut g[0],
-                C::X => &mut g[4],
-                C::Y => &mut g[7],
-                C::Z => &mut g[9],
+                C::X => &mut g[1],
+                C::Y => &mut g[2],
+                C::Z => &mut g[3],
             },
 
             C::X => match ν {
                 C::T => &mut g[4],
-                C::X => &mut g[1],
-                C::Y => &mut g[5],
-                C::Z => &mut g[8],
+                C::X => &mut g[5],
+                C::Y => &mut g[6],
+                C::Z => &mut g[7],
             },
 
             C::Y => match ν {
-                C::T => &mut g[7],
-                C::X => &mut g[5],
-                C::Y => &mut g[2],
-                C::Z => &mut g[6],
+                C::T => &mut g[8],
+                C::X => &mut g[9],
+                C::Y => &mut g[10],
+                C::Z => &mut g[11],
             },
 
             C::Z => match ν {
-                C::T => &mut g[9],
-                C::X => &mut g[8],
-                C::Y => &mut g[6],
-                C::Z => &mut g[3],
+                C::T => &mut g[12],
+                C::X => &mut g[13],
+                C::Y => &mut g[14],
+                C::Z => &mut g[15],
             },
         }
     }

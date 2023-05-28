@@ -42,6 +42,13 @@ pub enum Tensor2Config {
     Ll,
 }
 
+/// An abbreviated Tensor4Config
+#[derive(Clone, Copy)]
+pub enum ReimannConfig {
+    Ulll,
+    Llll,
+}
+
 // todo: deprecate?
 /// Numerical components of a vector that may be contravariant, or covaraint.
 #[derive(Clone, Copy, Default)]

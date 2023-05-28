@@ -25,7 +25,7 @@ const RENDER_DIST: f32 = 100.;
 const BACKGROUND_COLOR: Color = (0.5, 0.5, 0.5);
 
 const SCHWARZ_SPHERE_SIZE: f32 = 0.5;
-const GEODESIC_SPHERE_SIZE: f32 = 0.1;
+const GEODESIC_SPHERE_SIZE: f32 = 0.02;
 
 const COLOR_MASS: Color = (0., 0., 0.);
 

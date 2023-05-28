@@ -21,6 +21,7 @@ use std::f64::consts::TAU;
 mod christoffel;
 mod metric;
 // mod reimann; // todo: Put back when ready
+mod reimann;
 mod render;
 mod schwarzchild;
 mod tensors;
@@ -272,15 +273,18 @@ fn main() {
     let num_events = 1_000;
     let dτ = 1.; // todo?
 
+    // todo: Should these vector be normalized to be -1?
+    // "The value of the magnitude of an object's four-velocity, i.e. the quantity obtained by applying
+    // the metric tensor g to the four-velocity U, that is ‖U‖2 = U ⋅ U = gμνUνUμ, is always equal to ±c^2"
     for (posit_init, v_init) in &[
         // todo: What should initial time component be for v?
         (
             Vec4Minkowski::new(0., 3., 0., 0.),
-            Vec4Minkowski::new(0., 0.01, 0., 0.),
+            Vec4Minkowski::new(-1., 0.00, 0., 0.),
         ),
         (
             Vec4Minkowski::new(0., 10., 0., 0.),
-            Vec4Minkowski::new(0., 0., 0.5, 0.),
+            Vec4Minkowski::new(1., 0., 0.5, 0.),
         ),
         (
             Vec4Minkowski::new(0., 15., 0., 0.),
