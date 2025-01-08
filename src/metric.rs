@@ -1,12 +1,12 @@
 //! The Metric tensor and related data.
 
+use lin_alg::f64::{Mat4, Vec3};
+
 use crate::{
     schwarzchild,
     tensors::{PositIndex, PrevNext, Tensor2Config, V4Component, Vec4, Vec4Minkowski, C, COMPS},
     Arr4dMetric, Arr4dReal, C_SQ, G, H,
 };
-
-use lin_alg2::f64::{Mat4, Vec3};
 
 /// https://github.com/einsteinpy/einsteinpy/blob/main/src/einsteinpy/metric/base_metric.py
 /// A metric tensor of order (2? 3?)
@@ -74,7 +74,7 @@ impl MetricTensor {
 
         *g.val_mut(C::Z, C::T, l) = e_z.dot(e_t);
         *g.val_mut(C::Z, C::X, l) = e_z.dot(e_x);
-        *g.val_mut(C::Z, C::Y, l) = e_z.dot(e_zy);
+        *g.val_mut(C::Z, C::Y, l) = e_z.dot(e_y);
         *g.val_mut(C::Z, C::Z, l) = e_z.dot(e_z);
 
         g.generate_inverse();

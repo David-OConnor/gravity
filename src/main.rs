@@ -15,8 +15,12 @@
 //! with it. Figure out if you can then, using the curvature (eg second derivatives) of the space
 //! (in 4d and/or 5d?) model gravity.
 
-use lin_alg2::f64::{Mat4, Vec3, Vec4 as Vec4Linalg};
 use std::f64::consts::TAU;
+
+use lin_alg::{
+    f64::{Mat4, Vec3, Vec4 as Vec4Linalg},
+    linspace,
+};
 
 mod christoffel;
 mod metric;
@@ -28,11 +32,10 @@ mod tensors;
 mod ui;
 mod util;
 
-use crate::tensors::Worldline;
 use crate::{
     christoffel::Christoffel,
     metric::{MetricGridWDiffs, MetricTensor, MetricWDiffs},
-    tensors::{Vec4, Vec4Minkowski},
+    tensors::{Vec4, Vec4Minkowski, Worldline},
 };
 
 // Gravitational constant.
@@ -146,7 +149,7 @@ pub fn swarzchild_interval(r_s: f64, r: f64, dr: f64, dθ: f64, dφ: f64) -> f64
 
 /// Update our grid positions. Run this when we change grid bounds or spacing.
 pub fn update_grid_posits(grid_posits: &mut Arr4dVec4, grid_min: f64, grid_max: f64, n: usize) {
-    let grid_lin = util::linspace((grid_min, grid_max), n);
+    let grid_lin = linspace((grid_min, grid_max), n);
 
     // Set up a grid with values that increase in distance the farther we are from the center.
     let mut grid_1d = vec![0.; n];

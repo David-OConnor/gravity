@@ -27,17 +27,17 @@ impl Riemann {
         let factor = 1. / (2. * ds);
 
         for λ in &COMPS {
-            let part_1 = (Γs.val(μ, PrevNext::N).val(ρ, ν, σ)
-                - Γs.val(μ, PrevNext::P).val(ρ, ν, σ))
+            let part_1 = (Γs.val(μ, PrevNext::Next).val(ρ, ν, σ)
+                - Γs.val(μ, PrevNext::Prev).val(ρ, ν, σ))
                 * factor;
 
-            let part_2 = (Γs.val(ν, PrevNext::N).val(ρ, μ, σ)
-                - Γs.val(ν, PrevNext::P).val(ρ, μ, σ))
+            let part_2 = (Γs.val(ν, PrevNext::Next).val(ρ, μ, σ)
+                - Γs.val(ν, PrevNext::Prev).val(ρ, μ, σ))
                 * factor;
 
             // C::T is a dummy val here.
-            let part_3 = Γs.val(C::T, PrevNext::OnPt).val(ρ, μ, λ) * Γ.val(λ, ν, σ) * factor;
-            let part_4 = Γs.val(C::T, PrevNext::OnPt).val(ρ, ν, λ) * Γ.val(λ, μ, σ) * factor;
+            let part_3 = Γs.val(C::T, PrevNext::OnPt).val(ρ, μ, λ) * Γs.val(λ, ν, σ) * factor;
+            let part_4 = Γs.val(C::T, PrevNext::OnPt).val(ρ, ν, λ) * Γs.val(λ, μ, σ) * factor;
 
             result += part_1 - part_2 + part_3 - part_4;
         }

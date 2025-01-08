@@ -6,11 +6,12 @@ use std::{
     ops::{Add, AddAssign},
 };
 
-use lin_alg2::f64::{Mat4, Vec3};
+use lin_alg::f64::{Mat4, Vec3};
 
 use crate::{
-    christoffel::Christoffel, metric::MetricTensor, metric::MetricWDiffs, Arr4dChristoffel,
-    Arr4dMetric, Arr4dReal, C, C_SQ, G,
+    christoffel::Christoffel,
+    metric::{MetricTensor, MetricWDiffs},
+    Arr4dChristoffel, Arr4dMetric, Arr4dReal, C, C_SQ, G,
 };
 
 pub const COMPS: [V4Component; 4] = [

@@ -1,19 +1,17 @@
 use core::f32::consts::TAU;
 
-use crate::{
-    tensors::{Event, Vec4Minkowski},
-    State,
-};
-
 use graphics::{
     self, Camera, ControlScheme, DeviceEvent, EngineUpdates, Entity, InputSettings, LightType,
     Lighting, Mesh, PointLight, Scene, UiLayout, UiSettings,
 };
-
-use crate::tensors::Worldline;
-use lin_alg2::{
+use lin_alg::{
     f32::{Quaternion, Vec3},
     f64::Vec3 as Vec3F64,
+};
+
+use crate::{
+    tensors::{Event, Vec4Minkowski, Worldline},
+    State,
 };
 
 type Color = (f32, f32, f32);

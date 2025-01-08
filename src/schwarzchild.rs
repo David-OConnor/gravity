@@ -1,9 +1,9 @@
 //! Code related to the Scharzchild geometry. Note that some functionality is in methods of
 //! `Worldline` and `MetricTensor`.
 
-use crate::tensors::Vec4Minkowski;
+use lin_alg::f64::Vec3;
 
-use lin_alg2::f64::Vec3;
+use crate::tensors::Vec4Minkowski;
 
 /// Helper fn for generating neighboring points for the Schwarzchild metric
 /// This is a conversion from cartesian to spherical coordinates.

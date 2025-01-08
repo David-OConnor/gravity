@@ -6,6 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-graphics = { path = "../../graphics_wgpu" }
-lin-alg2 = { path = "../../lin_alg" }
-egui = "^0.19"
+graphics = { path = "../../graphics" }
+lin_alg = { path = "../../lin_alg" }
+egui = "^0.30.0"
