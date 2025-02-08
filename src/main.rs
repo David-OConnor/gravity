@@ -15,12 +15,7 @@
 //! with it. Figure out if you can then, using the curvature (eg second derivatives) of the space
 //! (in 4d and/or 5d?) model gravity.
 
-use std::f64::consts::TAU;
-
-use lin_alg::{
-    f64::{Mat4, Vec3, Vec4 as Vec4Linalg},
-    linspace,
-};
+use lin_alg::{f64::Vec3, linspace};
 
 mod christoffel;
 mod metric;
@@ -34,8 +29,8 @@ mod util;
 
 use crate::{
     christoffel::Christoffel,
-    metric::{MetricGridWDiffs, MetricTensor, MetricWDiffs},
-    tensors::{Vec4, Vec4Minkowski, Worldline},
+    metric::{MetricGridWDiffs, MetricTensor},
+    tensors::{Vec4Minkowski, Worldline},
 };
 
 // Gravitational constant.

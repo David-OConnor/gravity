@@ -3,9 +3,31 @@ name = "gravity"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# -- Library settings --
+[lib]
+name = "gravity"
+path = "src/lib.rs"
 
+# -- Binary settings --
+[[bin]]
+name = "gravity"
+path = "src/main.rs"
+required-features = ["bin"]
+
+
+[features]
+default = ["bin"]
+bin = ["graphics", "egui"]
+
+# -- Shared dependencies (for lib and bin) --
 [dependencies]
-graphics = { path = "../../graphics" }
 lin_alg = { path = "../../lin_alg" }
-egui = "^0.30.0"
+
+# -- Optional dependencies (bin-only) --
+[dependencies.graphics]
+path = "../../graphics"
+optional = true
+
+[dependencies.egui]
+version = "0.31.0"
+optional = true

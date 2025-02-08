@@ -10,10 +10,8 @@ use crate::{
 /// D = 4 and n = 3, so this has 4^3 = 64 components.
 #[derive(Clone)]
 pub struct Christoffel {
-    /// This can be thought of a a col-major 4x4x4 matrix.
+    /// This can be thought of as a col-major 4x4x4 matrix.
     /// There are 40 independent components vice 64, since lower indices are swappable.
-    /// We are keeping the full representation for now for simplicity and clarity with matrix
-    /// index conventions, but our code takes advantage of the degeneracy; we don't use all indices.
     components: [f64; 40],
 }
 
